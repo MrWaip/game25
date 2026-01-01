@@ -77,18 +77,19 @@ export class AssetsManager<SpriteKey extends string = SpriteName> {
 	}
 
 	async initialize(): Promise<void> {
-		for (const [key, url] of this.#sprites.entries()) {
-			const result = await fetch(url);
-			const blob = await result.blob();
-			const image = await createImageBitmap(blob);
+		await Promise.all([
+			...this.#sprites.entries().map(async ([key, url]) => {
+				const result = await fetch(url);
+				const blob = await result.blob();
+				const image = await createImageBitmap(blob);
 
-			this.#images.set(key as SpriteName, image);
-		}
-
-		for (const [key, url] of this.#audioUrls.entries()) {
-			const result = await fetch(url);
-			const blob = await result.arrayBuffer();
-			this.#audioData.set(key, blob);
-		}
+				this.#images.set(key as SpriteName, image);
+			}),
+			...this.#audioUrls.entries().map(async ([key, url]) => {
+				const result = await fetch(url);
+				const blob = await result.arrayBuffer();
+				this.#audioData.set(key, blob);
+			}),
+		]);
 	}
 }
