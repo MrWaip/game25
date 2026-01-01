@@ -8,6 +8,9 @@ import {
 import { RenderLayerComponent } from "../components/renderLayerComponent";
 import { TransformComponent } from "../components/transformComponent";
 import { SpriteRenderComponent } from "../components/spriteRenderComponent";
+import { MovingPlatformComponent } from "../components/movingPlatformComponent";
+import { VelocityComponent } from "../components/velocityComponent";
+import { CarrierSurfaceComponent } from "../components/carrierSurfaceComponent";
 import { Vec2 } from "../primitives/vec2-gl";
 import { RenderLayers } from "../render/layers";
 
@@ -15,12 +18,22 @@ type Options = {
 	size?: Vec2;
 	position: Vec2;
 	kind: PlatformKind;
+	moving?:
+		| {
+				axis: "x" | "y";
+				min: number;
+				max: number;
+				speed: number;
+				direction?: 1 | -1;
+		  }
+		| undefined;
 };
 
 export function createPlatform({
 	position,
 	size = Vec2.fromValues(48 * 3, 48),
 	kind,
+	moving,
 }: Options): Component[] {
 	const clonedPosition = Vec2.clone(position);
 	const clonedSize = Vec2.clone(size);
@@ -61,5 +74,29 @@ export function createPlatform({
 
 	const renderLayer = new RenderLayerComponent(RenderLayers.World);
 
-	return [transform, collider, render, renderLayer, tag];
+	const components: Component[] = [
+		transform,
+		collider,
+		render,
+		renderLayer,
+		tag,
+	];
+
+	if (moving && kind === "moving") {
+		const velocity = new VelocityComponent(Vec2.create());
+		const movingComponent = new MovingPlatformComponent({
+			axis: moving.axis,
+			min: moving.min,
+			max: moving.max,
+			speed: moving.speed,
+			direction: moving.direction,
+			origin: Vec2.clone(position),
+		});
+
+		const carrier = new CarrierSurfaceComponent();
+
+		components.push(velocity, movingComponent, carrier);
+	}
+
+	return components;
 }

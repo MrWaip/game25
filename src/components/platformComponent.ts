@@ -1,6 +1,6 @@
 import { Component } from "./component";
 
-export type PlatformKind = "default" | "iced";
+export type PlatformKind = "default" | "iced" | "moving";
 
 export class PlatformComponent extends Component {
 	public kind: PlatformKind;

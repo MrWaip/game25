@@ -52,6 +52,9 @@ import type { CanvasRenderer } from "../render/renderer";
 import type { AudioPlayer } from "../systems/audioPlayer";
 import { GodModComponent } from "../components/godModComponent";
 import { CheatSystem } from "../systems/cheatSystem";
+import { MovingPlatformComponent } from "../components/movingPlatformComponent";
+import { MovingPlatformSystem } from "../systems/movingPlatformSystem";
+import { CarrierSurfaceComponent } from "../components/carrierSurfaceComponent";
 
 export function registerGameComponents(world: World) {
 	world.registerComponent(TransformComponent);
@@ -76,6 +79,8 @@ export function registerGameComponents(world: World) {
 	world.registerComponent(Camera);
 	world.registerComponent(PlatformSpawner);
 	world.registerComponent(PlatformComponent);
+	world.registerComponent(MovingPlatformComponent);
+	world.registerComponent(CarrierSurfaceComponent);
 	world.registerComponent(FollowCameraComponent);
 	world.registerComponent(CounterComponent);
 	world.registerComponent(TextRenderComponent);
@@ -112,6 +117,7 @@ export function registerGameSystems(
 	world.registerSystem(new InputSystem(deps.inputStrategy));
 	world.registerSystem(new MovementSystem());
 	world.registerSystem(new JumpSystem());
+	world.registerSystem(new MovingPlatformSystem());
 	world.registerSystem(physicsWorld);
 	world.registerSystem(new CoinSystem());
 	world.registerSystem(new RocketBoosterSystem(deps.rocketBoosterRandom));

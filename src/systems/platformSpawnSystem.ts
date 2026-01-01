@@ -20,6 +20,19 @@ import { GAME_CONSTANTS } from "../game/constants";
 
 const PLATFORM_BASE = GAME_CONSTANTS.PLATFORM_BASE;
 const MAX_JUMP_WIDTH = GAME_CONSTANTS.MAX_JUMP_WIDTH;
+const MOVING_PLATFORM_CHANCE = 0.15;
+const ICED_PLATFORM_CHANCE = 0.3;
+const MIN_MOVING_RANGE = 120;
+const MAX_MOVING_RANGE = 240;
+const MOVING_PLATFORM_SPEED = 120;
+
+type MovingPlatformOptions = {
+	axis: "x" | "y";
+	min: number;
+	max: number;
+	speed: number;
+	direction?: 1 | -1;
+};
 
 type SpawnCtx = {
 	lastPlatform: {
@@ -129,8 +142,14 @@ export class PlatformSpawnSystem implements ISystem {
 		const spawnedPlatforms: Array<{ position: Vec2; size: Vec2 }> = [];
 
 		for (let i = 0; i < 5; i++) {
+			const kindRoll = this.#random.next();
+			const wantsMoving = kindRoll <= MOVING_PLATFORM_CHANCE;
 			const kind: PlatformKind =
-				this.#random.next() <= 0.3 ? "iced" : "default";
+				wantsMoving && this.canSpawnMoving(ctx.spawner)
+					? "moving"
+					: kindRoll <= MOVING_PLATFORM_CHANCE + ICED_PLATFORM_CHANCE
+						? "iced"
+						: "default";
 			const spawnAABB = this.getSafeSpawnAABB(
 				jumpHeight,
 				MAX_JUMP_WIDTH,
@@ -146,6 +165,7 @@ export class PlatformSpawnSystem implements ISystem {
 				spawnAABB,
 				nextPlatformWidth,
 				kind,
+				ctx.spawner,
 			);
 
 			ctx.world.debugPersistentAABB(
@@ -234,11 +254,26 @@ export class PlatformSpawnSystem implements ISystem {
 		aabb: AABB,
 		width: number,
 		kind: PlatformKind,
+		spawner?: PlatformSpawner,
 	) {
 		const size = Vec2.fromValues(width, 48);
 		const position = this.#random.randomInAABB(aabb);
 
-		const entity = world.addEntity(createPlatform({ position, size, kind }));
+		const movingOptions =
+			kind === "moving"
+				? this.createMovingPlatformOptions(position, size, spawner)
+				: undefined;
+		const resolvedKind: PlatformKind =
+			kind === "moving" && !movingOptions ? "default" : kind;
+
+		const entity = world.addEntity(
+			createPlatform({
+				position,
+				size,
+				kind: resolvedKind,
+				moving: movingOptions,
+			}),
+		);
 
 		const transform = world.getComponent(entity, TransformComponent)!;
 		const collider = world.getComponent(entity, ColliderComponent)!;
@@ -383,6 +418,51 @@ export class PlatformSpawnSystem implements ISystem {
 				if (r <= cumulative[i]) return values[i];
 			}
 			return values[values.length - 1];
+		};
+	}
+
+	private canSpawnMoving(spawner: PlatformSpawner) {
+		return spawner.maxX - spawner.minX >= MIN_MOVING_RANGE;
+	}
+
+	private createMovingPlatformOptions(
+		position: Vec2,
+		size: Vec2,
+		spawner?: PlatformSpawner,
+	): MovingPlatformOptions | undefined {
+		if (!spawner) return;
+
+		const halfWidth = size[0] / 2;
+		const minX = spawner.minX + halfWidth;
+		const maxX = spawner.maxX - halfWidth;
+
+		if (minX >= maxX) {
+			return;
+		}
+
+		const availableRange = maxX - minX;
+		const travel = Math.min(MAX_MOVING_RANGE, availableRange);
+
+		if (travel < MIN_MOVING_RANGE) {
+			return;
+		}
+
+		const start = Math.min(
+			Math.max(position[0] - travel / 2, minX),
+			maxX - travel,
+		);
+		const end = start + travel;
+
+		if (end - start <= 0) {
+			return;
+		}
+
+		return {
+			axis: "x",
+			min: start,
+			max: end,
+			speed: MOVING_PLATFORM_SPEED,
+			direction: 1,
 		};
 	}
 }

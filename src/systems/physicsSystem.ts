@@ -3,6 +3,8 @@ import { ColliderComponent } from "../components/colliderComponent";
 import { Gravity } from "../components/gravityComponent";
 import { TransformComponent } from "../components/transformComponent";
 import { VelocityComponent } from "../components/velocityComponent";
+import { MovingPlatformComponent } from "../components/movingPlatformComponent";
+import { CarrierSurfaceComponent } from "../components/carrierSurfaceComponent";
 import type { World } from "../core/world";
 import { AABB } from "../primitives/aabb";
 import type { PhysicsWorld } from "./physicsWorld";
@@ -18,6 +20,7 @@ export class PhysicsSystem implements ISystem {
 	#tempVec5 = Vec2.create();
 	#tempVec6 = Vec2.create();
 	#tempVec7 = Vec2.create();
+	#tempVec8 = Vec2.create();
 	#tempPosWithOffset = Vec2.create();
 	#tempPosition = Vec2.create();
 	#tempRemaining = Vec2.create();
@@ -38,6 +41,32 @@ export class PhysicsSystem implements ISystem {
 
 			if (!collider.enabled) continue;
 
+			if (world.hasComponent(item.entity, MovingPlatformComponent)) {
+				continue;
+			}
+
+			let carrierVelocity: Vec2 | undefined;
+			const previousCollisions = world.getComponent(
+				item.entity,
+				CollidedComponent,
+			);
+			if (previousCollisions) {
+				for (const collision of previousCollisions.verticalCollisions()) {
+					if (collision.normal[1] <= 0) continue;
+					if (!world.hasComponent(collision.entity, CarrierSurfaceComponent)) {
+						continue;
+					}
+					const platformVel = world.getComponent(
+						collision.entity,
+						VelocityComponent,
+					);
+					if (!platformVel) continue;
+					Vec2.copy(this.#tempVec8, platformVel.value);
+					carrierVelocity = this.#tempVec8;
+					break;
+				}
+			}
+
 			const gravity = world.getComponent(item.entity, Gravity);
 
 			if (gravity) {
@@ -46,6 +75,11 @@ export class PhysicsSystem implements ISystem {
 			}
 
 			Vec2.scale(this.#tempVec1, velocity.value, dt);
+			if (carrierVelocity) {
+				Vec2.scale(this.#tempVec2, carrierVelocity, dt);
+				Vec2.add(this.#tempVec1, this.#tempVec1, this.#tempVec2);
+			}
+
 			const lenSq = Vec2.squaredLength(this.#tempVec1);
 			const hasMovement = lenSq > 1e-6;
 

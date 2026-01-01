@@ -6,10 +6,12 @@ import { VelocityComponent } from "../components/velocityComponent";
 import { Gravity } from "../components/gravityComponent";
 import { CollidedComponent } from "../components/collidedComponent";
 import { Vec2 } from "../primitives/vec2-gl";
+import { createPlatform } from "../entities/platform";
 import { CounterComponent } from "../components/counterComponent";
 import type { World } from "../core/world";
 import type { PhysicsWorld } from "./physicsWorld";
 import { createHarness } from "../testkit/harness";
+import { MovingPlatformSystem } from "./movingPlatformSystem";
 
 describe("PhysicsSystem", () => {
 	let world: World;
@@ -161,6 +163,93 @@ describe("PhysicsSystem", () => {
 			physicsSystem.fixedUpdate(world, dt);
 
 			expect(velocity.value[1]).toBe(0);
+		});
+	});
+
+	describe("движущиеся платформы", () => {
+		it("переносят сущность, стоящую сверху", () => {
+			const platform = world.addEntity(
+				createPlatform({
+					position: Vec2.fromValues(0, 0),
+					size: Vec2.fromValues(200, 40),
+					kind: "moving",
+					moving: {
+						axis: "x",
+						min: -100,
+						max: 100,
+						speed: 100,
+					},
+				}),
+			);
+
+			const entity = world.addEntity([
+				new TransformComponent(Vec2.fromValues(0, 20)),
+				new VelocityComponent(Vec2.fromValues(0, 0)),
+				new ColliderComponent({ size: Vec2.fromValues(40, 40) }),
+				new Gravity({ acceleration: Vec2.fromValues(0, -500) }),
+			]);
+
+			const movingSystem = new MovingPlatformSystem();
+
+			physicsWorld.fixedUpdate(world);
+			physicsSystem.fixedUpdate(world, dt);
+
+			const transform = world.getComponent(entity, TransformComponent)!;
+			const startX = transform.position[0];
+
+			movingSystem.fixedUpdate(world, dt);
+			physicsWorld.fixedUpdate(world);
+			physicsSystem.fixedUpdate(world, dt);
+
+			const platformVelocity = world.getComponent(platform, VelocityComponent)!;
+			const expectedX = startX + platformVelocity.value[0] * dt;
+
+			expect(transform.position[0]).toBeCloseTo(expectedX, 1);
+		});
+
+		it("не проталкивают сквозь стены", () => {
+			const wall = world.addEntity([
+				new TransformComponent(Vec2.fromValues(60, 0)),
+				new ColliderComponent({ size: Vec2.fromValues(20, 200) }),
+			]);
+
+			const platform = world.addEntity(
+				createPlatform({
+					position: Vec2.fromValues(-50, 0),
+					size: Vec2.fromValues(200, 40),
+					kind: "moving",
+					moving: {
+						axis: "x",
+						min: -50,
+						max: 150,
+						speed: 400,
+					},
+				}),
+			);
+
+			const entity = world.addEntity([
+				new TransformComponent(Vec2.fromValues(-50, 20)),
+				new VelocityComponent(Vec2.fromValues(0, 0)),
+				new ColliderComponent({ size: Vec2.fromValues(40, 40) }),
+				new Gravity({ acceleration: Vec2.fromValues(0, -500) }),
+			]);
+
+			const movingSystem = new MovingPlatformSystem();
+
+			movingSystem.fixedUpdate(world, dt);
+			physicsWorld.fixedUpdate(world);
+			physicsSystem.fixedUpdate(world, dt);
+
+			const wallTransform = world.getComponent(wall, TransformComponent)!;
+			const wallCollider = world.getComponent(wall, ColliderComponent)!;
+
+			const wallLeft = wallTransform.position[0] - wallCollider.size[0] / 2;
+
+			const transform = world.getComponent(entity, TransformComponent)!;
+			expect(transform.position[0]).toBeLessThanOrEqual(wallLeft - 20);
+
+			const platformVelocity = world.getComponent(platform, VelocityComponent)!;
+			expect(platformVelocity.value[0]).toBeGreaterThan(0);
 		});
 	});
 
