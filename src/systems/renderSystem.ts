@@ -1,7 +1,7 @@
 import {
-  AnimationState,
-  AnimationTable,
-  AnimationTimer,
+	AnimationState,
+	AnimationTable,
+	AnimationTimer,
 } from "../components/animationComponent";
 import { Camera } from "../components/cameraComponent";
 import { DebugRenderComponent } from "../components/debugRenderComponent";
@@ -10,6 +10,7 @@ import { TransformComponent } from "../components/transformComponent";
 import { PrimitiveRenderComponent } from "../components/renderableComponent";
 import { SpriteRenderComponent } from "../components/spriteRenderComponent";
 import { TextRenderComponent } from "../components/textRenderComponent";
+import { Screen } from "../core/screen";
 import type { World } from "../core/world";
 import type { Entity } from "../entities/entity";
 import { AABB } from "../primitives/aabb";
@@ -18,208 +19,207 @@ import type { IRenderer } from "../render/renderer";
 import type { ISystem } from "./system";
 import { Vec2 } from "../primitives/vec2-gl";
 
-// не рендерить то что не влазит в кадр
-
 export class RenderSystem implements ISystem {
-  #renderer: IRenderer;
-  #tempViewportSizeScaled = Vec2.create();
-  #tempPosWithOffset = Vec2.create();
+	#renderer: IRenderer;
+	#screen: Screen;
+	#tempVisibleWorldSize = Vec2.create();
+	#tempPosWithOffset = Vec2.create();
 
-  constructor(renderer: IRenderer) {
-    this.#renderer = renderer;
-  }
+	constructor(renderer: IRenderer, screen: Screen) {
+		this.#renderer = renderer;
+		this.#screen = screen;
+	}
 
-  update(world: World): void {
-    const { camera, transform: cameraTransform } = this.getCamera(world);
+	update(world: World): void {
+		const { camera, transform: cameraTransform } = this.getCamera(world);
 
-    this.#renderer.clear();
+		this.#renderer.clear();
 
-    this.#renderer.setCamera({
-      position: cameraTransform.position,
-      viewport: camera.viewportSize,
-      zoom: camera.zoom,
-    });
+		this.#renderer.setCamera({
+			position: cameraTransform.position,
+			zoom: camera.zoom,
+		});
 
-    Vec2.scale(this.#tempViewportSizeScaled, camera.viewportSize, 1 / camera.zoom);
-    const cameraAABB = AABB.fromCenter(
-      cameraTransform.position,
-      this.#tempViewportSizeScaled,
-    );
+		const visibleWorldSize = this.#screen.getCameraWorldSize(camera.zoom);
 
-    for (const layer of ORDERED_LAYERS) {
-      for (const entity of world.queryByLayer(layer, (entity) =>
-        this.isEntityVisible(world, entity, cameraAABB),
-      )) {
-        this.renderEntity(world, entity);
-      }
-    }
-  }
+		Vec2.copy(this.#tempVisibleWorldSize, visibleWorldSize);
 
-  private isEntityVisible(
-    world: World,
-    entity: Entity,
-    cameraAABB: AABB,
-  ): boolean {
-    const transform = world.getComponent(entity, TransformComponent);
-    if (!transform) return true;
+		const cameraAABB = AABB.fromCenter(
+			cameraTransform.position,
+			this.#tempVisibleWorldSize,
+		);
 
-    let combined: AABB | undefined;
+		for (const layer of ORDERED_LAYERS) {
+			for (const entity of world.queryByLayer(layer, (entity) =>
+				this.isEntityVisible(world, entity, cameraAABB),
+			)) {
+				this.renderEntity(world, entity);
+			}
+		}
+	}
 
-    for (const bounds of this.renderBounds(world, entity, transform)) {
-      combined = combined ? combined.union(bounds) : bounds;
+	private isEntityVisible(
+		world: World,
+		entity: Entity,
+		cameraAABB: AABB,
+	): boolean {
+		const transform = world.getComponent(entity, TransformComponent);
+		if (!transform) return true;
 
-      if (combined.intersects(cameraAABB)) {
-        return true;
-      }
-    }
+		let combined: AABB | undefined;
 
-    return combined === undefined;
-  }
+		for (const bounds of this.renderBounds(world, entity, transform)) {
+			combined = combined ? combined.union(bounds) : bounds;
 
-  private *renderBounds(
-    world: World,
-    entity: Entity,
-    transform: TransformComponent
-  ): Generator<AABB> {
-    const sprite = world.getComponent(entity, SpriteRenderComponent);
-    if (sprite?.enabled && !sprite.static) {
-      Vec2.add(this.#tempPosWithOffset, transform.position, sprite.offset);
-      yield AABB.fromCenter(this.#tempPosWithOffset, sprite.size);
-    }
+			if (combined.intersects(cameraAABB)) {
+				return true;
+			}
+		}
 
-    const animation = world.getComponentsOrUndefined(
-      entity,
-      AnimationState,
-      AnimationTable,
-      AnimationTimer,
-    );
+		return combined === undefined;
+	}
 
-    if (animation) {
-      const [animationState, animationTable] = animation;
-      const clip = animationTable.clips[animationState.current];
+	private *renderBounds(
+		world: World,
+		entity: Entity,
+		transform: TransformComponent,
+	): Generator<AABB> {
+		const sprite = world.getComponent(entity, SpriteRenderComponent);
+		if (sprite?.enabled && !sprite.static) {
+			Vec2.add(this.#tempPosWithOffset, transform.position, sprite.offset);
+			yield AABB.fromCenter(this.#tempPosWithOffset, sprite.size);
+		}
 
-      if (clip) {
-        Vec2.add(this.#tempPosWithOffset, transform.position, clip.offset);
-        yield AABB.fromCenter(this.#tempPosWithOffset, clip.size);
-      }
-    }
+		const animation = world.getComponentsOrUndefined(
+			entity,
+			AnimationState,
+			AnimationTable,
+			AnimationTimer,
+		);
 
-    const primitive = world.getComponent(entity, PrimitiveRenderComponent);
-    if (primitive) {
-      Vec2.add(this.#tempPosWithOffset, transform.position, primitive.offset);
-      yield AABB.fromCenter(
-        this.#tempPosWithOffset,
-        primitive.size,
-      );
-    }
-  }
+		if (animation) {
+			const [animationState, animationTable] = animation;
+			const clip = animationTable.clips[animationState.current];
 
-  private renderEntity(world: World, entity: Entity) {
-    const transform = world.getComponent(entity, TransformComponent);
+			if (clip) {
+				Vec2.add(this.#tempPosWithOffset, transform.position, clip.offset);
+				yield AABB.fromCenter(this.#tempPosWithOffset, clip.size);
+			}
+		}
 
-    if (!transform) return;
+		const primitive = world.getComponent(entity, PrimitiveRenderComponent);
+		if (primitive) {
+			Vec2.add(this.#tempPosWithOffset, transform.position, primitive.offset);
+			yield AABB.fromCenter(this.#tempPosWithOffset, primitive.size);
+		}
+	}
 
-    const sprite = world.getComponent(entity, SpriteRenderComponent);
+	private renderEntity(world: World, entity: Entity) {
+		const transform = world.getComponent(entity, TransformComponent);
 
-    if (sprite && sprite.enabled) {
-      this.#renderer.renderSprite({
-        imageName: sprite.name,
-        offset: sprite.offset,
-        position: transform.position,
-        size: sprite.size,
-        spriteOffset: sprite.spriteOffset,
-        spriteSize: sprite.spriteSize,
-        static: sprite.static,
-        fitToSize: sprite.fitToSize,
-        alpha: sprite.alpha,
-      });
-    }
+		if (!transform) return;
 
-    const animation = world.getComponentsOrUndefined(
-      entity,
-      AnimationState,
-      AnimationTable,
-      AnimationTimer,
-    );
+		const sprite = world.getComponent(entity, SpriteRenderComponent);
 
-    if (animation) {
-      const [animationState, animationTable, animationTimer] = animation;
+		if (sprite && sprite.enabled) {
+			this.#renderer.renderSprite({
+				imageName: sprite.name,
+				offset: sprite.offset,
+				position: transform.position,
+				size: sprite.size,
+				spriteOffset: sprite.spriteOffset,
+				spriteSize: sprite.spriteSize,
+				static: sprite.static,
+				fitToSize: sprite.fitToSize,
+				alpha: sprite.alpha,
+			});
+		}
 
-      const clip = animationTable.clips[animationState.current];
+		const animation = world.getComponentsOrUndefined(
+			entity,
+			AnimationState,
+			AnimationTable,
+			AnimationTimer,
+		);
 
-      if (clip) {
-        const facing = world.getComponent(entity, FacingComponent);
-        const direction = facing?.direction ?? "right";
+		if (animation) {
+			const [animationState, animationTable, animationTimer] = animation;
 
-        this.#renderer.renderAnimated({
-          name: clip.sheet,
-          frame: animationTimer.frame,
-          direction,
-          position: transform.position,
-          offset: clip.offset,
-          size: clip.size,
-          spriteSize: clip.spriteSize ?? clip.size,
-          cols: clip.cols,
-        });
-      }
-    }
+			const clip = animationTable.clips[animationState.current];
 
-    const primitive = world.getComponent(entity, PrimitiveRenderComponent);
+			if (clip) {
+				const facing = world.getComponent(entity, FacingComponent);
+				const direction = facing?.direction ?? "right";
 
-    if (primitive) {
-      this.#renderer.renderPrimitive({
-        color: primitive.color,
-        filled: primitive.filled,
-        form: primitive.form,
-        offset: primitive.offset,
-        position: transform.position,
-        size: primitive.size,
-      });
-    }
+				this.#renderer.renderAnimated({
+					name: clip.sheet,
+					frame: animationTimer.frame,
+					direction,
+					position: transform.position,
+					offset: clip.offset,
+					size: clip.size,
+					spriteSize: clip.spriteSize ?? clip.size,
+					cols: clip.cols,
+				});
+			}
+		}
 
-    const text = world.getComponent(entity, TextRenderComponent);
+		const primitive = world.getComponent(entity, PrimitiveRenderComponent);
 
-    if (text) {
-      this.#renderer.renderText({
-        position: transform.position,
-        offset: text.offset,
-        static: text.static,
-        text: text.text,
-        color: text.color,
-        fontSize: text.fontSize,
-      });
-    }
+		if (primitive) {
+			this.#renderer.renderPrimitive({
+				color: primitive.color,
+				filled: primitive.filled,
+				form: primitive.form,
+				offset: primitive.offset,
+				position: transform.position,
+				size: primitive.size,
+			});
+		}
 
-    const debug = world.getComponent(entity, DebugRenderComponent);
+		const text = world.getComponent(entity, TextRenderComponent);
 
-    if (debug) {
-      for (const render of debug.flush()) {
-        switch (render.type) {
-          case "aabb":
-            this.#renderer.debugAABB(render.aabb, render.color, undefined);
-            break;
-        }
-      }
+		if (text) {
+			this.#renderer.renderText({
+				position: transform.position,
+				offset: text.offset,
+				static: text.static,
+				text: text.text,
+				color: text.color,
+				fontSize: text.fontSize,
+			});
+		}
 
-      for (const render of debug.persistent()) {
-        switch (render.type) {
-          case "aabb":
-            this.#renderer.debugAABB(render.aabb, render.color, render.name);
-            break;
-        }
-      }
-    }
-  }
+		const debug = world.getComponent(entity, DebugRenderComponent);
 
-  private getCamera(world: World) {
-    const cameraEntity = world.getFirst(Camera, TransformComponent);
+		if (debug) {
+			for (const render of debug.flush()) {
+				switch (render.type) {
+					case "aabb":
+						this.#renderer.debugAABB(render.aabb, render.color, undefined);
+						break;
+				}
+			}
 
-    if (!cameraEntity) {
-      throw new Error("Camera is not set");
-    }
+			for (const render of debug.persistent()) {
+				switch (render.type) {
+					case "aabb":
+						this.#renderer.debugAABB(render.aabb, render.color, render.name);
+						break;
+				}
+			}
+		}
+	}
 
-    const [camera, transform] = cameraEntity.components;
+	private getCamera(world: World) {
+		const cameraEntity = world.getFirst(Camera, TransformComponent);
 
-    return { camera, transform };
-  }
+		if (!cameraEntity) {
+			throw new Error("Camera is not set");
+		}
+
+		const [camera, transform] = cameraEntity.components;
+
+		return { camera, transform };
+	}
 }

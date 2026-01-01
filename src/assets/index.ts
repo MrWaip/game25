@@ -16,24 +16,24 @@ import rocketBooster from "./sprites/rocket-booster.png";
 import flyingSleighReindeerHarnessSnap from "./sprites/flyingSleighReindeerHarnessSnap.png";
 
 export const sprites = {
-  coin,
-  terrain,
-  ozonBg,
-  cardIdle,
-  cardRun,
-  cardJump,
-  whitePlatform,
-  icedPlatform,
-  rocketFly,
-  rocketBooster,
-  flyingSleighReindeerHarnessSnap,
+	coin,
+	terrain,
+	ozonBg,
+	cardIdle,
+	cardRun,
+	cardJump,
+	whitePlatform,
+	icedPlatform,
+	rocketFly,
+	rocketBooster,
+	flyingSleighReindeerHarnessSnap,
 } as const;
 
 export const audio = {
-  coinPickup,
-  background,
-  jump,
-  hurt,
+	coinPickup,
+	background,
+	jump,
+	hurt,
 };
 
 export type SpriteName = keyof typeof sprites;

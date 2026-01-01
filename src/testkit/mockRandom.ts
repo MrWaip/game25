@@ -1,26 +1,24 @@
 import { Random } from "../primitives/random";
 
 export class MockRandom extends Random {
-  #values: number[] = [];
-  #index = 0;
+	#values: number[] = [];
+	#index = 0;
 
-  constructor(seed: string | number, values: number[] = []) {
-    super(seed);
-    this.#values = values;
-  }
+	constructor(seed: string | number, values: number[] = []) {
+		super(seed);
+		this.#values = values;
+	}
 
-  next(): number {
-    if (this.#index < this.#values.length) {
-      return this.#values[this.#index++];
-    }
+	next(): number {
+		if (this.#index < this.#values.length) {
+			return this.#values[this.#index++];
+		}
 
-    return super.next();
-  }
+		return super.next();
+	}
 
-  reset(values: number[]) {
-    this.#values = values;
-    this.#index = 0;
-  }
+	reset(values: number[]) {
+		this.#values = values;
+		this.#index = 0;
+	}
 }
-
-

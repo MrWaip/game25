@@ -14,15 +14,19 @@
 ## Точки входа и жизненный цикл
 
 - **Старт приложения**: `src/main.ts`
-  - выбирает стратегию ввода (touch/keyboard) и viewport (scaled для touch)
+  - выбирает стратегию ввода (touch/keyboard)
   - прокидывает `targetFps: 144`, `seed`/`debug` из query-параметров
+  - передаёт размеры экрана и `pixelRatio` в `createGame({ ... })`
   - вызывает `createGame({ ... })`
 - **Сборка игры**: `src/export/index.ts`
   - создаёт `<canvas>` + (для touch) DOM-хинты управления
+  - создаёт `Screen` объект (размеры экрана, pixelRatio, orthographicSize)
+  - настраивает canvas размеры (physical pixels) и стили (CSS pixels)
   - создаёт `World`, `PhysicsWorld`, `AssetsManager`, `CanvasRenderer`, `AudioPlayer`
   - `GlobalRandom.initialize(seed ?? "42")`
   - подписывает внешний `onEvent` через `eventBus.onAll` (async через `setTimeout`)
   - **регистрирует компоненты/системы** в `World` (порядок важен; см. `src/game/setup.ts`)
+  - передаёт `Screen` объект в системы, которые его используют
   - создаёт `Engine`, вызывает `engine.initialize()`, затем `engine.start()`; `simulationHz = targetFps ?? 60`
   - подписывается на `visibilitychange` чтобы ставить на паузу/возобновлять звук
 - **Стартовая сцена**: `src/core/engine.ts`
@@ -75,7 +79,7 @@
 - **`ColliderComponent`**: AABB-параметры (`size`, `offset`) + флаги `isTrigger` (не блокирует, но шлёт `trigger`) и `oneWay` (платформа “сверху”).
 - **`CollidedComponent`**: результат столкновений на текущем кадре; даёт “синтетические” флаги (`isGrounded`, `hitCeiling`, `isAgainstWall`).
 - **`InputComponent`**: “нажатия” (jump/left/right/…) от стратегии ввода; пишет `InputSystem`, читают movement/jump системы.
-- **`Camera`**: параметры камеры (`viewportSize`, `zoom`, `followFor`, `highestY`).
+- **`Camera`**: параметры камеры (`zoom`, `followFor`, `highestY`). `orthographicSize` хранится только в `Screen` как единственный источник истины.
 - **`FollowCameraComponent`**: заставляет сущность следовать камере по X/Y (полезно для стен/фон/интерфейса).
 - **`RenderLayerComponent`**: слой рендера (`RenderLayers`), чтобы попадать в `world.queryByLayer`.
 - **`SpriteRenderComponent`**: отрисовка статичного/тайлового спрайта.
@@ -102,7 +106,7 @@
 - `InputSystem` (fixed): читает `InputStrategy`, пишет `InputComponent`, подсвечивает touch-hints.
 - `MovementSystem` (fixed): ускорение/фрикцион скорости по вводу.
 - `JumpSystem` (fixed): прыжок/вариативная высота; эмитит `audioPlay: jump`.
-- `PhysicsWorld` (fixed): строит quadtree по коллайдерам внутри viewport камеры + padding.
+- `PhysicsWorld` (fixed): строит quadtree по коллайдерам внутри видимой области камеры + padding (использует `Screen` для вычисления размеров мира).
 - `CoinSystem`: слушает `trigger`, удаляет монеты, эмитит `audioPlay`/`coinCollected`.
 - `PhysicsSystem` (fixed): гравитация, swept AABB, пишет `CollidedComponent`, эмитит `collision/trigger`, обрезает скорость.
 - `FacingSystem` (update): направление персонажа по `VelocityComponent`.
@@ -148,23 +152,51 @@
   - **emit**: `CounterSystem` (при изменении любого счётчика)
   - **use-case**: наружные слушатели через `createGame({ onEvent })`
 
+## Screen (экран/рендеринг)
+
+Файл: `src/core/screen.ts`
+
+**`Screen`** — объект, управляющий параметрами экрана и буфера рендеринга:
+
+- **`size`** (Vec2, CSS pixels): логический размер экрана в CSS пикселях
+- **`pixelRatio`** (number): коэффициент устройства (`devicePixelRatio`), отношение физических пикселей к CSS пикселям
+- **`bufferSize`** (Vec2, physical pixels): фактический размер canvas-буфера в физических пикселях (`size * pixelRatio`)
+- **`orthographicSize`** (number, world-units): половина высоты видимой области мира в единицах мира (базовое значение)
+
+Методы:
+- `getAspect()`: соотношение сторон экрана
+- `getWorldWidth(orthographicSize?)`: ширина мира в world-units
+- `getWorldHeight(orthographicSize?)`: высота мира в world-units
+- `getWorldSize(orthographicSize?)`: размеры мира (Vec2)
+- `getVisibleWorldWidth(orthographicSize, zoom)`: видимая ширина мира с учётом zoom
+- `getVisibleWorldHeight(orthographicSize, zoom)`: видимая высота мира с учётом zoom
+- `getVisibleWorldSize(orthographicSize, zoom)`: видимые размеры мира (Vec2)
+
+`Screen` передаётся в системы через зависимости (`registerGameSystems`). Системы используют `Screen` для вычисления размеров мира, aspect ratio и видимых областей камеры.
+
 ## Рендер (Canvas 2D)
 
 - **Система**: `src/systems/renderSystem.ts`
   - находит текущую камеру (entity с `Camera` + `Transform`)
   - чистит кадр, выставляет камеру в renderer
+  - использует `Screen` для вычисления видимой области камеры (culling)
   - делает **culling** по AABB, собранным из спрайта/анимации/примитива сущности (static-рендеры рисуются всегда)
   - рендерит по слоям (`ORDERED_LAYERS`, `RenderLayerComponent`, `world.queryByLayer`)
 - **Рендерер**: `src/render/renderer.ts` (`CanvasRenderer`)
-  - world → camera → canvas преобразования
+  - принимает `Screen` объект в конструкторе
+  - world → camera → canvas преобразования с учётом `Screen.bufferSize` (physical pixels)
+  - использует `Screen.getVisibleWorldSize()` для вычисления масштаба
   - умеет: sprite tiling/fit, animated spritesheet, primitives, debug AABB, текст
-  - `setCamera()` нормализует zoom под фактический canvas size
+  - `setCamera()` вычисляет fitScale на основе `Screen.bufferSize` и видимой области камеры
+  - static элементы (UI) рендерятся в screen space с учётом `pixelRatio`
 
 ## Физика и коллизии
 
 - **Broadphase**: `src/systems/physicsWorld.ts` (`PhysicsWorld`)
+  - принимает `Screen` объект в конструкторе
   - строит quadtree (`@timohausmann/quadtree-ts`) по AABB коллайдеров
-  - вставляет только коллайдеры, которые пересекаются с «расширенной зоной камеры» (viewport + padding)
+  - использует `Screen.getWorldSize()` для вычисления размеров мира
+  - вставляет только коллайдеры, которые пересекаются с «расширенной зоной камеры» (видимая область + padding)
 - **Narrowphase + интеграция**: `src/systems/physicsSystem.ts`
   - применяет гравитацию (`Gravity`) к скорости
   - вычисляет swept AABB столкновения на векторе перемещения кадра
@@ -176,8 +208,14 @@
 
 ## Камера
 
+- **Компонент `Camera`**:
+  - `zoom` (number): масштаб камеры
+  - `followFor`, `highestY`, `allowFollowDown`: параметры следования за сущностью
+  - `orthographicSize` хранится только в `Screen` (единственный источник истины)
 - `CameraSystem` (`src/systems/cameraSystem.ts`):
-  - фиксирует X по центру viewport
+  - принимает `Screen` объект в конструкторе
+  - использует `Screen.getWorldWidth()` для вычисления центра мира по X
+  - фиксирует X по центру мира
   - следит за игроком по Y, но только в сторону «вверх» (через `highestY`)
   - для сущностей с `FollowCameraComponent` синхронизирует `Transform` по X/Y с камерой (стены, фон, UI)
 
@@ -211,19 +249,30 @@
 - **World-space** (логика/физика):
   - используется в `Transform.position`
   - \(Y\) **растёт вверх** (прыжок увеличивает Y; смерть — когда игрок ниже низа камеры)
-- **Canvas-space** (пиксели экрана):
+  - размеры мира вычисляются через `Screen.getWorldSize()` на основе `orthographicSize` и aspect ratio
+- **Screen-space** (CSS pixels):
+  - `Screen.size` — логический размер экрана в CSS пикселях
+  - используется для UI элементов (static элементы)
+- **Canvas-space** (physical pixels):
+  - `Screen.bufferSize` — фактический размер canvas в физических пикселях (`size * pixelRatio`)
+  - `canvas.width/height` устанавливаются в `bufferSize`
+  - `canvas.style.width/height` устанавливаются в `size` (CSS pixels)
   - `CanvasRenderer` конвертирует world → camera → canvas
   - в canvas \(Y\) **растёт вниз**, поэтому есть инверсия по Y при переводе координат
-- **Следствие**: любые “экранные” UI-элементы лучше рендерить как `TextRenderComponent { static: true }` или держать отдельные правила преобразования.
+  - масштаб вычисляется как `fitScale = min(bufferSize / visibleWorldSize)` для правильного отображения на экранах с высоким DPR
+- **Следствие**: любые "экранные" UI-элементы рендерятся как `TextRenderComponent { static: true }` в screen space (CSS pixels, масштабированные на `pixelRatio`).
 
 ## Смерть / рестарт / счёт (flow)
 
 - **Смерть**: `DeathSystem`
-  - вычисляет нижнюю границу камеры (центр − halfViewport)
+  - принимает `Screen` объект в конструкторе
+  - вычисляет нижнюю границу камеры через `screen.getCameraBottomY(cameraY)`
   - если `player.y < cameraBottomY` → `eventBus.emit("death")` и `eventBus.emit("audioPlay", { name: "hurt" })`
 - **Рестарт**: `RestartSystem` (подписка на `death`)
-  - телепорт игрока в старт (`x = viewport/2`, `y = GAME_CONSTANTS.PLAYER_START_Y`)
-  - сброс `camera.highestY` и позиции камеры в центр viewport
+  - принимает `Screen` объект в конструкторе
+  - использует `Screen.getWorldWidth()` для вычисления центра мира
+  - телепорт игрока в старт (`x = worldWidth / 2`, `y = GAME_CONSTANTS.PLAYER_START_Y`)
+  - сброс `camera.highestY` в `Screen.orthographicSize` и позиции камеры в центр мира
 - **Счёт/попытки**: `CounterSystem`
   - в fixed-update пересчитывает высоту от нижней точки игрока (`Transform - collider.offset`) и делит на 10
   - на `death` увеличивает `falls`, на `coinCollected` — `coins`
@@ -257,7 +306,7 @@
 
 Файл: `src/testkit/spawn.ts`
 
-`makeSpawners(world, { viewportSize })` возвращает удобные функции, которые вызывают “боевые” фабрики сущностей из `src/entities/*`:
+`makeSpawners(world, { screen })` возвращает удобные функции, которые вызывают "боевые" фабрики сущностей из `src/entities/*`:
 
 - `spawn.player(pos)` → `createPlayer(...)`
 - `spawn.platform({ x, y, kind, width?, height? })` → `createPlatform(...)`
@@ -303,8 +352,10 @@
 ## Где что искать (быстрые ссылки)
 
 - **ECS ядро**: `src/core/world.ts`, `src/systems/system.ts`
+- **Screen**: `src/core/screen.ts` — управление размерами экрана, pixel ratio, размерами мира
 - **Инициализация игры**: `src/main.ts`, `src/export/index.ts`, `src/core/engine.ts`
 - **Рендер**: `src/systems/renderSystem.ts`, `src/render/renderer.ts`, `src/render/layers.ts`
 - **Физика**: `src/systems/physicsWorld.ts`, `src/systems/physicsSystem.ts`, компоненты `src/components/colliderComponent.ts`
+- **Камера**: `src/systems/cameraSystem.ts`, `src/components/cameraComponent.ts`, `src/entities/camera.ts`
 - **Инпут**: `src/systems/inputSystem.ts`, `src/input/*`
 - **Спавн платформ/коинов**: `src/systems/platformSpawnSystem.ts`, `src/entities/platform.ts`, `src/entities/coin.ts`

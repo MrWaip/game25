@@ -1,31 +1,35 @@
+import { Screen } from "../core/screen";
 import type { World } from "../core/world";
 import type { ISystem } from "./system";
-import { Vec2 } from "../primitives/vec2-gl";
 
 export class DeathSystem implements ISystem {
-  #tempViewportHalf = Vec2.create();
-  #tempCameraBottom = Vec2.create();
+	#screen: Screen;
 
-  fixedUpdate(world: World): void {
-    const player = world.getPlayer();
-    const camera = world.getCamera();
+	constructor(screen: Screen) {
+		this.#screen = screen;
+	}
 
-    if (!player || !camera) return;
+	fixedUpdate(world: World): void {
+		const player = world.getPlayer();
+		const camera = world.getCamera();
 
-    const [playerTransform] = player.components;
-    const [cameraComponent, cameraTransform] = camera.components;
+		if (!player || !camera) return;
 
-    Vec2.scale(this.#tempViewportHalf, cameraComponent.viewportSize, 0.5);
-    Vec2.sub(this.#tempCameraBottom, cameraTransform.position, this.#tempViewportHalf);
+		const [playerTransform] = player.components;
+		const [, cameraTransform] = camera.components;
 
-    if (playerTransform.position[1] >= this.#tempCameraBottom[1]) {
-      return;
-    }
+		const cameraBottomY = this.#screen.getCameraBottomY(
+			cameraTransform.position[1],
+		);
 
-    world.eventBus.emit("death", {
-      entity: player.entity,
-    });
+		if (playerTransform.position[1] >= cameraBottomY) {
+			return;
+		}
 
-    world.eventBus.emit("audioPlay", { name: "hurt", volume: 0.01 });
-  }
+		world.eventBus.emit("death", {
+			entity: player.entity,
+		});
+
+		world.eventBus.emit("audioPlay", { name: "hurt", volume: 0.01 });
+	}
 }

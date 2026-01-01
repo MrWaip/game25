@@ -3,6 +3,7 @@ import { createPlayer } from "../entities/player";
 import { createWall } from "../entities/wall";
 import type { World } from "./world";
 import type { AssetsManager } from "./assetsManager";
+import { Screen } from "./screen";
 import { createBackground } from "../entities/background";
 import { createCamera } from "../entities/camera";
 import { createPlatformSpawner } from "../entities/platformSpawner";
@@ -15,154 +16,160 @@ import { GAME_CONSTANTS } from "../game/constants";
 import { createRocketBooster } from "../entities/rocketBooster";
 
 type EngineEventBus = {
-  emit<K extends keyof GameEvents>(
-    event: K,
-    ...args: GameEvents[K] extends void ? [] : [GameEvents[K]]
-  ): void;
+	emit<K extends keyof GameEvents>(
+		event: K,
+		...args: GameEvents[K] extends void ? [] : [GameEvents[K]]
+	): void;
 };
 
 type EngineWorld = Pick<
-  World,
-  "addEntity" | "fixedUpdate" | "update" | "initialize" | "destroy"
+	World,
+	"addEntity" | "fixedUpdate" | "update" | "initialize" | "destroy"
 > & {
-  eventBus: EngineEventBus;
+	eventBus: EngineEventBus;
 };
 
 type EngineAssetsManager = Pick<AssetsManager, "initialize">;
 
 export class Engine {
-  #world: EngineWorld;
-  #assetsManager: EngineAssetsManager;
-  #stopped: boolean;
-  #viewportSize: Vec2;
-  #simulationHz: number;
+	#world: EngineWorld;
+	#assetsManager: EngineAssetsManager;
+	#stopped: boolean;
+	#screen: Screen;
+	#simulationHz: number;
 
-  constructor(
-    world: EngineWorld,
-    assetsManager: EngineAssetsManager,
-    viewportSize: Vec2,
-    simulationHz: number,
-  ) {
-    this.#world = world;
-    this.#assetsManager = assetsManager;
-    this.#stopped = false;
-    this.#viewportSize = viewportSize;
-    this.#simulationHz = simulationHz;
-  }
+	constructor(
+		world: EngineWorld,
+		assetsManager: EngineAssetsManager,
+		screen: Screen,
+		simulationHz: number,
+	) {
+		this.#world = world;
+		this.#assetsManager = assetsManager;
+		this.#stopped = false;
+		this.#screen = screen;
+		this.#simulationHz = simulationHz;
+	}
 
-  public async initialize(): Promise<void> {
-    this.#world.addEntity(createBackground(this.#viewportSize));
-    this.#world.addEntity(createCounter(this.#viewportSize));
-    this.#world.addEntity(createFPS(this.#viewportSize));
+	public async initialize(): Promise<void> {
+		const worldSize = this.#screen.getWorldSize();
+		const worldWidth = worldSize[0];
 
-    const startPlayerPos = Vec2.fromValues(this.#viewportSize[0] / 2, GAME_CONSTANTS.PLAYER_START_Y);
-    const player = this.#world.addEntity(createPlayer(startPlayerPos));
+		this.#world.addEntity(createBackground(this.#screen.size));
+		this.#world.addEntity(createCounter(this.#screen.size));
+		this.#world.addEntity(createFPS(this.#screen.size));
 
-    this.#world.addEntity(
-      createPlatform({
-        kind: "default",
-        position: Vec2.clone(startPlayerPos),
-      }),
-    );
+		const startPlayerPos = Vec2.fromValues(
+			worldWidth / 2,
+			GAME_CONSTANTS.PLAYER_START_Y,
+		);
+		const player = this.#world.addEntity(createPlayer(startPlayerPos));
 
-    this.#world.addEntity(
-      createRocketBooster({
-        position: Vec2.fromValues(100, 50),
-      }),
-    );
+		this.#world.addEntity(
+			createPlatform({
+				kind: "default",
+				position: Vec2.clone(startPlayerPos),
+			}),
+		);
 
-    const cameraPos = Vec2.create();
-    Vec2.scale(cameraPos, this.#viewportSize, 0.5);
-    this.#world.addEntity(
-      createCamera({
-        followFor: player,
-        viewportSize: this.#viewportSize,
-        position: cameraPos,
-        zoom: 1,
-      }),
-    );
+		this.#world.addEntity(
+			createRocketBooster({
+				position: Vec2.fromValues(100, 50),
+			}),
+		);
 
-    this.#world.addEntity(createPlatformSpawner(this.#viewportSize));
+		const cameraPos = Vec2.create();
+		Vec2.set(cameraPos, worldWidth / 2, this.#screen.orthographicSize);
+		this.#world.addEntity(
+			createCamera({
+				followFor: player,
+				highestY: this.#screen.orthographicSize,
+				position: cameraPos,
+				zoom: 1,
+			}),
+		);
 
-    this.createWalls();
+		this.#world.addEntity(createPlatformSpawner(worldSize));
 
-    await this.#assetsManager.initialize();
-    await this.#world.initialize();
+		this.createWalls();
 
-    this.#world.eventBus.emit("audioPlay", {
-      name: "background",
-      loop: true,
-      volume: 0.01,
-    });
-  }
+		await this.#assetsManager.initialize();
+		await this.#world.initialize();
 
-  private createWalls(): void {
-    const wallHeight = this.#viewportSize[1] + GAME_CONSTANTS.WALL_HEIGHT_OFFSET;
-    const wallThickness = GAME_CONSTANTS.WALL_THICKNESS;
-    const halfViewportHeight = this.#viewportSize[1] / 2;
+		this.#world.eventBus.emit("audioPlay", {
+			name: "background",
+			loop: true,
+			volume: 0.01,
+		});
+	}
 
-    this.#world.addEntity(
-      createWall({
-        size: Vec2.fromValues(wallThickness, wallHeight),
-        position: Vec2.fromValues(wallThickness / 2, halfViewportHeight),
-        followCameraY: true,
-      }),
-    );
+	private createWalls(): void {
+		const worldSize = this.#screen.getWorldSize();
+		const worldWidth = worldSize[0];
+		const worldHeight = worldSize[1];
+		const wallHeight = worldHeight + GAME_CONSTANTS.WALL_HEIGHT_OFFSET;
+		const wallThickness = GAME_CONSTANTS.WALL_THICKNESS;
+		const halfWorldHeight = worldHeight / 2;
 
-    this.#world.addEntity(
-      createWall({
-        size: Vec2.fromValues(wallThickness, wallHeight),
-        position: Vec2.fromValues(
-          this.#viewportSize[0] - wallThickness / 2,
-          halfViewportHeight,
-        ),
-        followCameraY: true,
-      }),
-    );
+		this.#world.addEntity(
+			createWall({
+				size: Vec2.fromValues(wallThickness, wallHeight),
+				position: Vec2.fromValues(wallThickness / 2, halfWorldHeight),
+				followCameraY: true,
+			}),
+		);
 
-    this.#world.addEntity(
-      createWall({
-        size: Vec2.fromValues(this.#viewportSize[0], wallThickness),
-        position: Vec2.fromValues(
-          this.#viewportSize[0] / 2,
-          wallThickness / 2,
-        ),
-      }),
-    );
-  }
+		this.#world.addEntity(
+			createWall({
+				size: Vec2.fromValues(wallThickness, wallHeight),
+				position: Vec2.fromValues(
+					worldWidth - wallThickness / 2,
+					halfWorldHeight,
+				),
+				followCameraY: true,
+			}),
+		);
 
-  public async destroy(): Promise<void> {
-    this.#stopped = true;
+		this.#world.addEntity(
+			createWall({
+				size: Vec2.fromValues(worldWidth, wallThickness),
+				position: Vec2.fromValues(worldWidth / 2, wallThickness / 2),
+			}),
+		);
+	}
 
-    await this.#world.destroy();
-  }
+	public async destroy(): Promise<void> {
+		this.#stopped = true;
 
-  public start(): void {
-    const maxFrameTime = 0.25;
-    const maxSubSteps = 10;
-    const stepper = createFixedTimestep(
-      {
-        hz: this.#simulationHz,
-        maxFrameTime,
-        maxSubSteps,
-      },
-      performance.now(),
-    );
+		await this.#world.destroy();
+	}
 
-    const loop = (currentTime: number) => {
-      if (this.#stopped) return;
+	public start(): void {
+		const maxFrameTime = 0.25;
+		const maxSubSteps = 10;
+		const stepper = createFixedTimestep(
+			{
+				hz: this.#simulationHz,
+				maxFrameTime,
+				maxSubSteps,
+			},
+			performance.now(),
+		);
 
-      const { steps, frameDt } = stepper.tick(currentTime);
+		const loop = (currentTime: number) => {
+			if (this.#stopped) return;
 
-      for (let i = 0; i < steps; i++) {
-        this.#world.fixedUpdate(stepper.fixedDt);
-      }
+			const { steps, frameDt } = stepper.tick(currentTime);
 
-      this.#world.update(frameDt);
+			for (let i = 0; i < steps; i++) {
+				this.#world.fixedUpdate(stepper.fixedDt);
+			}
 
-      requestAnimationFrame(loop);
-    };
+			this.#world.update(frameDt);
 
-    requestAnimationFrame(loop);
-  }
+			requestAnimationFrame(loop);
+		};
+
+		requestAnimationFrame(loop);
+	}
 }

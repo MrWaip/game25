@@ -13,80 +13,82 @@ import { Vec2 } from "../primitives/vec2-gl";
 import type { PlayerAnimationState } from "../entities/player";
 
 type RespawnInfo = {
-  position: Vec2;
-  respawnTime: number;
+	position: Vec2;
+	respawnTime: number;
 };
 
 export class RocketBoosterSystem implements ISystem {
-  #respawns: RespawnInfo[] = [];
-  #random: Random;
+	#respawns: RespawnInfo[] = [];
+	#random: Random;
 
-  constructor(random?: Random) {
-    this.#random = random ?? GlobalRandom.child("rocket-booster-system");
-  }
+	constructor(random?: Random) {
+		this.#random = random ?? GlobalRandom.child("rocket-booster-system");
+	}
 
-  initialize(world: World): void {
-    world.eventBus.on("trigger", (e) => this.onTrigger(world, e));
-  }
+	initialize(world: World): void {
+		world.eventBus.on("trigger", (e) => this.onTrigger(world, e));
+	}
 
-  update(world: World): void {
-    const currentTime = world.getCurrentTime() / 1000;
+	update(world: World): void {
+		const currentTime = world.getCurrentTime() / 1000;
 
-    for (let i = this.#respawns.length - 1; i >= 0; i--) {
-      const respawn = this.#respawns[i];
+		for (let i = this.#respawns.length - 1; i >= 0; i--) {
+			const respawn = this.#respawns[i];
 
-      if (currentTime >= respawn.respawnTime) {
-        world.addEntity(createRocketBooster({ position: respawn.position }));
-        this.#respawns.splice(i, 1);
-      }
-    }
-  }
+			if (currentTime >= respawn.respawnTime) {
+				world.addEntity(createRocketBooster({ position: respawn.position }));
+				this.#respawns.splice(i, 1);
+			}
+		}
+	}
 
-  onTrigger(world: World, { initiator, target }: GameEvents["trigger"]) {
-    if (!world.hasComponent(target, RocketBoosterComponent)) {
-      return;
-    }
+	onTrigger(world: World, { initiator, target }: GameEvents["trigger"]) {
+		if (!world.hasComponent(target, RocketBoosterComponent)) {
+			return;
+		}
 
-    const playerEnt = world.getFirst(
-      TransformComponent,
-      PlayerComponent,
-    );
+		const playerEnt = world.getFirst(TransformComponent, PlayerComponent);
 
-    if (!playerEnt || playerEnt.entity !== initiator) {
-      return;
-    }
+		if (!playerEnt || playerEnt.entity !== initiator) {
+			return;
+		}
 
-    const [playerTransform] = playerEnt.components;
-    const boosterTransform = world.getComponent(target, TransformComponent);
+		const [playerTransform] = playerEnt.components;
+		const boosterTransform = world.getComponent(target, TransformComponent);
 
-    if (!boosterTransform) {
-      return;
-    }
+		if (!boosterTransform) {
+			return;
+		}
 
-    const startY = playerTransform.position[1];
-    const flightDistance = this.#random.range(2000, 5000);
-    const targetY = startY + flightDistance;
-    const startTime = world.getCurrentTime() / 1000;
+		const startY = playerTransform.position[1];
+		const flightDistance = this.#random.range(2000, 5000);
+		const targetY = startY + flightDistance;
+		const startTime = world.getCurrentTime() / 1000;
 
-    if (!world.hasComponent(initiator, Gravity)) {
-      return;
-    }
+		if (!world.hasComponent(initiator, Gravity)) {
+			return;
+		}
 
-    world.deleteEntity(target);
+		world.deleteEntity(target);
 
-    world.disableComponent(initiator, Gravity);
-    world.updateComponent(initiator, new RocketFlightComponent(startY, targetY, startTime));
+		world.disableComponent(initiator, Gravity);
+		world.updateComponent(
+			initiator,
+			new RocketFlightComponent(startY, targetY, startTime),
+		);
 
-    const animationState = world.getComponent(initiator, AnimationState<PlayerAnimationState>);
-    if (animationState) {
-      animationState.set("rocket-fly", true);
-    }
+		const animationState = world.getComponent(
+			initiator,
+			AnimationState<PlayerAnimationState>,
+		);
+		if (animationState) {
+			animationState.set("rocket-fly", true);
+		}
 
-    const respawnTime = startTime + 3;
-    this.#respawns.push({
-      position: Vec2.clone(boosterTransform.position),
-      respawnTime,
-    });
-  }
+		const respawnTime = startTime + 3;
+		this.#respawns.push({
+			position: Vec2.clone(boosterTransform.position),
+			respawnTime,
+		});
+	}
 }
-

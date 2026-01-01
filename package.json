@@ -1,52 +1,54 @@
 {
-  "name": "game-25",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "main": "./dist/the-ozon-game.js",
-  "module": "./dist/the-ozon-game.js",
-  "types": "./dist/export/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/the-ozon-game.js",
-      "types": "./dist/export/index.d.ts"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "dev": "vite",
-    "build:site": "vite build",
-    "build:lib": "tsdown",
-    "preview": "vite preview",
-    "lint": "eslint ./src",
-    "check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:stress": "NODE_OPTIONS=--expose-gc vitest run --config vitest.stress.config.ts"
-  },
-  "devDependencies": {
-    "@eslint/js": "9.39.2",
-    "@tauri-apps/cli": "2.9.6",
-    "@types/node": "22.12.0",
-    "@vitest/ui": "4.0.15",
-    "eslint": "9.39.2",
-    "globals": "16.5.0",
-    "happy-dom": "20.0.11",
-    "jiti": "2.6.1",
-    "tsdown": "0.17.0",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.49.0",
-    "vite": "npm:rolldown-vite@7.2.11",
-    "vitest": "4.0.15"
-  },
-  "overrides": {
-    "vite": "npm:rolldown-vite@7.2.11"
-  },
-  "dependencies": {
-    "@timohausmann/quadtree-ts": "2.3.0",
-    "gl-matrix": "3.4.4"
-  }
+	"name": "game-25",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"main": "./dist/the-ozon-game.js",
+	"module": "./dist/the-ozon-game.js",
+	"types": "./dist/export/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/the-ozon-game.js",
+			"types": "./dist/export/index.d.ts"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"dev": "vite",
+		"build:site": "vite build",
+		"build:lib": "tsdown",
+		"preview": "vite preview",
+		"lint": "eslint ./src",
+		"format": "npx @biomejs/biome format --write",
+		"check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:ui": "vitest --ui",
+		"test:run": "vitest run",
+		"test:stress": "NODE_OPTIONS=--expose-gc vitest run --config vitest.stress.config.ts"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.10",
+		"@eslint/js": "9.39.2",
+		"@tauri-apps/cli": "2.9.6",
+		"@types/node": "22.12.0",
+		"@vitest/ui": "4.0.15",
+		"eslint": "9.39.2",
+		"globals": "16.5.0",
+		"happy-dom": "20.0.11",
+		"jiti": "2.6.1",
+		"tsdown": "0.17.0",
+		"typescript": "5.9.3",
+		"typescript-eslint": "8.49.0",
+		"vite": "npm:rolldown-vite@7.2.11",
+		"vitest": "4.0.15"
+	},
+	"overrides": {
+		"vite": "npm:rolldown-vite@7.2.11"
+	},
+	"dependencies": {
+		"@timohausmann/quadtree-ts": "2.3.0",
+		"gl-matrix": "3.4.4"
+	}
 }

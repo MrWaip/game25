@@ -3,11 +3,11 @@ import { Component } from "./component";
 type Direction = "left" | "right";
 
 export class FacingComponent extends Component {
-  public direction: Direction;
+	public direction: Direction;
 
-  constructor(direction: Direction) {
-    super();
+	constructor(direction: Direction) {
+		super();
 
-    this.direction = direction;
-  }
+		this.direction = direction;
+	}
 }

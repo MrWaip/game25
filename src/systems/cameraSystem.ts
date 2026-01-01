@@ -1,77 +1,79 @@
 import { FollowCameraComponent } from "../components/followCameraComponent";
 import { TransformComponent } from "../components/transformComponent";
+import { Screen } from "../core/screen";
 import type { World } from "../core/world";
 import { Vec2 } from "../primitives/vec2-gl";
 import type { ISystem } from "./system";
 
 export class CameraSystem implements ISystem {
-  #viewportSize: Vec2;
+	#screen: Screen;
 
-  constructor(viewportSize: Vec2) {
-    this.#viewportSize = viewportSize;
-  }
+	constructor(screen: Screen) {
+		this.#screen = screen;
+	}
 
-  fixedUpdate(world: World): void {
-    const cameraEntity = world.getCamera();
+	fixedUpdate(world: World): void {
+		const cameraEntity = world.getCamera();
 
-    if (!cameraEntity) return;
+		if (!cameraEntity) return;
 
-    const [camera, transform] = cameraEntity.components;
+		const [camera, transform] = cameraEntity.components;
 
-    if (camera.followFor !== undefined) {
-      const followTransform = world.getComponent(
-        camera.followFor,
-        TransformComponent,
-      );
+		if (camera.followFor !== undefined) {
+			const followTransform = world.getComponent(
+				camera.followFor,
+				TransformComponent,
+			);
 
-      if (followTransform) {
-        if (camera.allowFollowDown) {
-          Vec2.set(
-            transform.position,
-            this.#viewportSize[0] / 2,
-            Math.max(followTransform.position[1], this.#viewportSize[1] / 2),
-          );
-        } else {
-          Vec2.set(
-            transform.position,
-            this.#viewportSize[0] / 2,
-            transform.position[1],
-          );
+			if (followTransform) {
+				const worldWidth = this.#screen.getWorldWidth();
 
-          const targetY = followTransform.position[1];
+				if (camera.allowFollowDown) {
+					Vec2.set(
+						transform.position,
+						worldWidth / 2,
+						Math.max(
+							followTransform.position[1],
+							this.#screen.orthographicSize,
+						),
+					);
+				} else {
+					Vec2.set(transform.position, worldWidth / 2, transform.position[1]);
 
-          if (targetY > (camera.highestY ?? -Infinity)) {
-            camera.highestY = targetY;
-          }
+					const targetY = followTransform.position[1];
 
-          Vec2.set(transform.position, transform.position[0], camera.highestY);
-        }
-      }
-    }
+					if (targetY > (camera.highestY ?? -Infinity)) {
+						camera.highestY = targetY;
+					}
 
-    const followEntities = world.query(
-      TransformComponent,
-      FollowCameraComponent,
-    );
+					Vec2.set(transform.position, transform.position[0], camera.highestY);
+				}
+			}
+		}
 
-    for (const item of followEntities) {
-      const [followTransform, follow] = item.components;
+		const followEntities = world.query(
+			TransformComponent,
+			FollowCameraComponent,
+		);
 
-      if (follow.followX) {
-        Vec2.set(
-          followTransform.position,
-          transform.position[0],
-          followTransform.position[1],
-        );
-      }
+		for (const item of followEntities) {
+			const [followTransform, follow] = item.components;
 
-      if (follow.followY) {
-        Vec2.set(
-          followTransform.position,
-          followTransform.position[0],
-          transform.position[1],
-        );
-      }
-    }
-  }
+			if (follow.followX) {
+				Vec2.set(
+					followTransform.position,
+					transform.position[0],
+					followTransform.position[1],
+				);
+			}
+
+			if (follow.followY) {
+				Vec2.set(
+					followTransform.position,
+					followTransform.position[0],
+					transform.position[1],
+				);
+			}
+		}
+	}
 }

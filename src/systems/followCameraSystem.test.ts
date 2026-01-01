@@ -5,70 +5,81 @@ import { Camera } from "../components/cameraComponent";
 import { FollowCameraComponent } from "../components/followCameraComponent";
 import { CameraSystem } from "./cameraSystem";
 import { Vec2 } from "../primitives/vec2-gl";
+import { Screen } from "../core/screen";
 
 describe("CameraSystem (follow camera functionality)", () => {
-  it("синхронизирует Y сущности с камерой (для стен, которые followCameraY)", () => {
-    const world = new World({ debug: false });
-    world.registerComponent(TransformComponent);
-    world.registerComponent(Camera);
-    world.registerComponent(FollowCameraComponent);
+	it("синхронизирует Y сущности с камерой (для стен, которые followCameraY)", () => {
+		const world = new World({ debug: false });
+		world.registerComponent(TransformComponent);
+		world.registerComponent(Camera);
+		world.registerComponent(FollowCameraComponent);
 
-    const cameraEntity = world.addEntity([
-      new TransformComponent(Vec2.fromValues(0, 100)),
-      new Camera({
-        viewportSize: Vec2.fromValues(800, 600),
-        highestY: 0,
-      }),
-    ]);
+		const screenSize = Vec2.fromValues(800, 600);
+		const orthographicSize = screenSize[1] / 2;
+		const screen = new Screen(screenSize, 1, orthographicSize);
 
-    const wallEntity = world.addEntity([
-      new TransformComponent(Vec2.fromValues(5, 0)),
-      new FollowCameraComponent(false, true),
-    ]);
+		const cameraEntity = world.addEntity([
+			new TransformComponent(Vec2.fromValues(0, 100)),
+			new Camera({
+				highestY: 0,
+			}),
+		]);
 
-    const system = new CameraSystem(Vec2.fromValues(800, 600));
-    system.fixedUpdate(world);
+		const wallEntity = world.addEntity([
+			new TransformComponent(Vec2.fromValues(5, 0)),
+			new FollowCameraComponent(false, true),
+		]);
 
-    const cameraTransform = world.getComponent(cameraEntity, TransformComponent)!;
-    const wallTransform = world.getComponent(wallEntity, TransformComponent)!;
+		const system = new CameraSystem(screen);
+		system.fixedUpdate(world);
 
-    expect(wallTransform.position[0]).toBe(5);
-    expect(wallTransform.position[1]).toBe(100);
+		const cameraTransform = world.getComponent(
+			cameraEntity,
+			TransformComponent,
+		)!;
+		const wallTransform = world.getComponent(wallEntity, TransformComponent)!;
 
-    expect(cameraTransform.position[0]).toBe(0);
-    expect(cameraTransform.position[1]).toBe(100);
-  });
+		expect(wallTransform.position[0]).toBe(5);
+		expect(wallTransform.position[1]).toBe(100);
 
-  it("синхронизирует X сущности с камерой", () => {
-    const world = new World({ debug: false });
-    world.registerComponent(TransformComponent);
-    world.registerComponent(Camera);
-    world.registerComponent(FollowCameraComponent);
+		expect(cameraTransform.position[0]).toBe(0);
+		expect(cameraTransform.position[1]).toBe(100);
+	});
 
-    const cameraEntity = world.addEntity([
-      new TransformComponent(Vec2.fromValues(123, 100)),
-      new Camera({
-        viewportSize: Vec2.fromValues(800, 600),
-        highestY: 0,
-      }),
-    ]);
+	it("синхронизирует X сущности с камерой", () => {
+		const world = new World({ debug: false });
+		world.registerComponent(TransformComponent);
+		world.registerComponent(Camera);
+		world.registerComponent(FollowCameraComponent);
 
-    const entity = world.addEntity([
-      new TransformComponent(Vec2.fromValues(5, 7)),
-      new FollowCameraComponent(true, false),
-    ]);
+		const screenSize = Vec2.fromValues(800, 600);
+		const orthographicSize = screenSize[1] / 2;
+		const screen = new Screen(screenSize, 1, orthographicSize);
 
-    const system = new CameraSystem(Vec2.fromValues(800, 600));
-    system.fixedUpdate(world);
+		const cameraEntity = world.addEntity([
+			new TransformComponent(Vec2.fromValues(123, 100)),
+			new Camera({
+				highestY: 0,
+			}),
+		]);
 
-    const cameraTransform = world.getComponent(cameraEntity, TransformComponent)!;
-    const transform = world.getComponent(entity, TransformComponent)!;
+		const entity = world.addEntity([
+			new TransformComponent(Vec2.fromValues(5, 7)),
+			new FollowCameraComponent(true, false),
+		]);
 
-    expect(transform.position[0]).toBe(123);
-    expect(transform.position[1]).toBe(7);
-    expect(cameraTransform.position[0]).toBe(123);
-    expect(cameraTransform.position[1]).toBe(100);
-  });
+		const system = new CameraSystem(screen);
+		system.fixedUpdate(world);
+
+		const cameraTransform = world.getComponent(
+			cameraEntity,
+			TransformComponent,
+		)!;
+		const transform = world.getComponent(entity, TransformComponent)!;
+
+		expect(transform.position[0]).toBe(123);
+		expect(transform.position[1]).toBe(7);
+		expect(cameraTransform.position[0]).toBe(123);
+		expect(cameraTransform.position[1]).toBe(100);
+	});
 });
-
-

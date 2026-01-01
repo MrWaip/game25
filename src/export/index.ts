@@ -1,13 +1,14 @@
 import { audio, sprites } from "../assets";
 import { AssetsManager } from "../core/assetsManager";
 import { Engine } from "../core/engine";
+import { Screen } from "../core/screen";
 import { World } from "../core/world";
 import { CanvasRenderer } from "../render/renderer";
 import { AudioPlayer } from "../systems/audioPlayer";
 import {
-  KeyboardInputStrategy,
-  MultiTouchZonesInputStrategy,
-  type InputStrategy,
+	KeyboardInputStrategy,
+	MultiTouchZonesInputStrategy,
+	type InputStrategy,
 } from "../input";
 import { Vec2 } from "../primitives/vec2-gl";
 import { GlobalRandom } from "../primitives/random";
@@ -15,137 +16,144 @@ import { registerGameComponents, registerGameSystems } from "../game/setup";
 import type { GameEvents } from "../primitives/gameEvents";
 
 export type GameEventListener = <K extends keyof GameEvents>(
-  event: K,
-  payload: GameEvents[K]
+	event: K,
+	payload: GameEvents[K],
 ) => void;
 
 type GameOptions = {
-  node: HTMLElement;
-  inputMode: "touch" | "keyboard";
-  debug?: boolean;
-  seed?: string;
-  targetFps?: 30 | 60 | 144;
-  viewportSize: {
-    width: number;
-    height: number;
-  };
-  onEvent?: GameEventListener;
+	node: HTMLElement;
+	inputMode: "touch" | "keyboard";
+	debug?: boolean;
+	seed?: string;
+	targetFps?: 30 | 60 | 144;
+	orthographicSize: {
+		width: number;
+		height: number;
+	};
+	pixelRatio?: number;
+	onEvent?: GameEventListener;
 };
 
 type Result = {
-  engine: Engine;
-  destroy: VoidFunction;
+	engine: Engine;
+	destroy: VoidFunction;
 };
 
 export function createGameWithTouchHints(
-  root: HTMLElement,
-  inputMode: GameOptions["inputMode"]
+	root: HTMLElement,
+	inputMode: GameOptions["inputMode"],
 ): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.id = "game";
-  root.appendChild(canvas);
+	const canvas = document.createElement("canvas");
+	canvas.id = "game";
+	root.appendChild(canvas);
 
-  if (inputMode === "touch") {
-    const hints = document.createElement("div");
-    hints.className = "touch-hints touch-hints--visible";
-    root.appendChild(hints);
+	if (inputMode === "touch") {
+		const hints = document.createElement("div");
+		hints.className = "touch-hints touch-hints--visible";
+		root.appendChild(hints);
 
-    const left = document.createElement("div");
-    left.className = "touch-hint touch-hint--left";
-    left.innerHTML = `<span class="touch-hint__icon">←</span>`;
-    hints.appendChild(left);
+		const left = document.createElement("div");
+		left.className = "touch-hint touch-hint--left";
+		left.innerHTML = `<span class="touch-hint__icon">←</span>`;
+		hints.appendChild(left);
 
-    const center = document.createElement("div");
-    center.className = "touch-hint touch-hint--center";
-    center.innerHTML = `
+		const center = document.createElement("div");
+		center.className = "touch-hint touch-hint--center";
+		center.innerHTML = `
       <span class="touch-hint__icon">⤒</span>
       <span class="touch-hint__label">Прыжок</span>
     `;
-    hints.appendChild(center);
+		hints.appendChild(center);
 
-    const right = document.createElement("div");
-    right.className = "touch-hint touch-hint--right";
-    right.innerHTML = `<span class="touch-hint__icon">→</span>`;
-    hints.appendChild(right);
-  }
+		const right = document.createElement("div");
+		right.className = "touch-hint touch-hint--right";
+		right.innerHTML = `<span class="touch-hint__icon">→</span>`;
+		hints.appendChild(right);
+	}
 
-  return canvas;
+	return canvas;
 }
 
 export async function createGame(options: GameOptions): Promise<Result> {
-  GlobalRandom.initialize(options.seed || "42");
+	GlobalRandom.initialize(options.seed || "42");
 
-  const canvas = createGameWithTouchHints(options.node, options.inputMode);
-  const viewportSize = Vec2.fromValues(
-    options.viewportSize.width,
-    options.viewportSize.height
-  );
+	const canvas = createGameWithTouchHints(options.node, options.inputMode);
+	const screenSize = Vec2.fromValues(
+		options.orthographicSize.width,
+		options.orthographicSize.height,
+	);
 
-  canvas.width = viewportSize[0];
-  canvas.height = viewportSize[1];
+	const pixelRatio = options.pixelRatio ?? 1;
+	const orthographicSize = options.orthographicSize.height / 2;
+	const screen = new Screen(screenSize, pixelRatio, orthographicSize);
 
-  const world = new World({ debug: options.debug });
-  const assetsManager = new AssetsManager();
-  const renderer = new CanvasRenderer(canvas, assetsManager, viewportSize);
-  const audioPlayer = new AudioPlayer(assetsManager);
-  let inputStategy: InputStrategy;
+	canvas.width = screen.bufferSize[0];
+	canvas.height = screen.bufferSize[1];
+	canvas.style.width = `${screen.size[0]}px`;
+	canvas.style.height = `${screen.size[1]}px`;
 
-  switch (options.inputMode) {
-    case "touch":
-      inputStategy = new MultiTouchZonesInputStrategy(canvas);
-      break;
-    case "keyboard":
-      inputStategy = new KeyboardInputStrategy();
-      break;
-  }
+	const world = new World({ debug: options.debug });
+	const assetsManager = new AssetsManager();
+	const renderer = new CanvasRenderer(canvas, assetsManager, screen);
+	const audioPlayer = new AudioPlayer(assetsManager);
+	let inputStategy: InputStrategy;
 
-  assetsManager.addSprites(sprites);
-  assetsManager.addAudio(audio);
+	switch (options.inputMode) {
+		case "touch":
+			inputStategy = new MultiTouchZonesInputStrategy(canvas);
+			break;
+		case "keyboard":
+			inputStategy = new KeyboardInputStrategy();
+			break;
+	}
 
-  registerGameComponents(world);
+	assetsManager.addSprites(sprites);
+	assetsManager.addAudio(audio);
 
-  if (options.onEvent) {
-    world.eventBus.onAll((event, payload) => {
-      setTimeout(() => {
-        options.onEvent!(event, payload);
-      }, 0);
-    });
-  }
+	registerGameComponents(world);
 
-  registerGameSystems(world, {
-    viewportSize,
-    inputStrategy: inputStategy,
-    renderer,
-    audioPlayer,
-    includeRender: true,
-    includeAudio: true,
-  });
+	if (options.onEvent) {
+		world.eventBus.onAll((event, payload) => {
+			setTimeout(() => {
+				options.onEvent!(event, payload);
+			}, 0);
+		});
+	}
 
-  const simulationHz = options.targetFps ?? 60;
+	registerGameSystems(world, {
+		screen,
+		inputStrategy: inputStategy,
+		renderer,
+		audioPlayer,
+		includeRender: true,
+		includeAudio: true,
+	});
 
-  const engine = new Engine(world, assetsManager, viewportSize, simulationHz);
+	const simulationHz = options.targetFps ?? 60;
 
-  await engine.initialize();
+	const engine = new Engine(world, assetsManager, screen, simulationHz);
 
-  engine.start();
+	await engine.initialize();
 
-  function handleVisibility() {
-    if (document.hidden) {
-      audioPlayer.pauseAll();
-    } else {
-      audioPlayer.resumeAll();
-    }
-  }
+	engine.start();
 
-  document.addEventListener("visibilitychange", handleVisibility);
+	function handleVisibility() {
+		if (document.hidden) {
+			audioPlayer.pauseAll();
+		} else {
+			audioPlayer.resumeAll();
+		}
+	}
 
-  function destroy() {
-    engine.destroy();
-    document.removeEventListener("visibilitychange", handleVisibility);
-  }
+	document.addEventListener("visibilitychange", handleVisibility);
 
-  return {
-    engine,
-    destroy,
-  };
+	function destroy() {
+		engine.destroy();
+		document.removeEventListener("visibilitychange", handleVisibility);
+	}
+
+	return {
+		engine,
+		destroy,
+	};
 }

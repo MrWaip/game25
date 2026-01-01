@@ -1,10 +1,10 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  test: {
-    // globals: true,
-    environment: "happy-dom",
-    include: ["src/**/*.test.ts"],
-    exclude: ["src/**/stress.test.ts"],
-  },
-})
+	test: {
+		// globals: true,
+		environment: "happy-dom",
+		include: ["src/**/*.test.ts"],
+		exclude: ["src/**/stress.test.ts"],
+	},
+});

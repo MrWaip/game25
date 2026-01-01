@@ -1,7 +1,7 @@
 import {
-  AnimationState,
-  AnimationTable,
-  AnimationTimer,
+	AnimationState,
+	AnimationTable,
+	AnimationTimer,
 } from "../components/animationComponent";
 import { CollidedComponent } from "../components/collidedComponent";
 import { ColliderComponent } from "../components/colliderComponent";
@@ -27,7 +27,6 @@ import { TextRenderComponent } from "../components/textRenderComponent";
 import { VelocityComponent } from "../components/velocityComponent";
 import { Camera } from "../components/cameraComponent";
 import type { World } from "../core/world";
-import type { Vec2 } from "../primitives/vec2-gl";
 import { AnimatedSpriteSystem } from "../systems/animatedSpriteSystem";
 import { AudioSystem } from "../systems/audioSystem";
 import { CameraSystem } from "../systems/cameraSystem";
@@ -55,92 +54,95 @@ import { GodModComponent } from "../components/godModComponent";
 import { CheatSystem } from "../systems/cheatSystem";
 
 export function registerGameComponents(world: World) {
-  world.registerComponent(TransformComponent);
-  world.registerComponent(CollidedComponent);
-  world.registerComponent(ColliderComponent);
-  world.registerComponent(Gravity);
-  world.registerComponent(InputComponent);
-  world.registerComponent(JumpComponent);
-  world.registerComponent(MovementComponent);
-  world.registerComponent(PlayerComponent);
-  world.registerComponent(CoinComponent);
-  world.registerComponent(RocketBoosterComponent);
-  world.registerComponent(RocketFlightComponent);
-  world.registerComponent(PrimitiveRenderComponent);
-  world.registerComponent(VelocityComponent);
-  world.registerComponent(SpriteRenderComponent);
-  world.registerComponent(RenderLayerComponent);
-  world.registerComponent(FacingComponent);
-  world.registerComponent(AnimationState);
-  world.registerComponent(AnimationTable);
-  world.registerComponent(AnimationTimer);
-  world.registerComponent(Camera);
-  world.registerComponent(PlatformSpawner);
-  world.registerComponent(PlatformComponent);
-  world.registerComponent(FollowCameraComponent);
-  world.registerComponent(CounterComponent);
-  world.registerComponent(TextRenderComponent);
-  world.registerComponent(FPSComponent);
-  world.registerComponent(GodModComponent);
+	world.registerComponent(TransformComponent);
+	world.registerComponent(CollidedComponent);
+	world.registerComponent(ColliderComponent);
+	world.registerComponent(Gravity);
+	world.registerComponent(InputComponent);
+	world.registerComponent(JumpComponent);
+	world.registerComponent(MovementComponent);
+	world.registerComponent(PlayerComponent);
+	world.registerComponent(CoinComponent);
+	world.registerComponent(RocketBoosterComponent);
+	world.registerComponent(RocketFlightComponent);
+	world.registerComponent(PrimitiveRenderComponent);
+	world.registerComponent(VelocityComponent);
+	world.registerComponent(SpriteRenderComponent);
+	world.registerComponent(RenderLayerComponent);
+	world.registerComponent(FacingComponent);
+	world.registerComponent(AnimationState);
+	world.registerComponent(AnimationTable);
+	world.registerComponent(AnimationTimer);
+	world.registerComponent(Camera);
+	world.registerComponent(PlatformSpawner);
+	world.registerComponent(PlatformComponent);
+	world.registerComponent(FollowCameraComponent);
+	world.registerComponent(CounterComponent);
+	world.registerComponent(TextRenderComponent);
+	world.registerComponent(FPSComponent);
+	world.registerComponent(GodModComponent);
 }
 
+import { Screen } from "../core/screen";
+
 export type RegisterGameSystemsDeps = {
-  viewportSize: Vec2;
-  inputStrategy: InputStrategy;
-  renderer?: CanvasRenderer;
-  audioPlayer?: AudioPlayer;
-  includeRender?: boolean;
-  includeAudio?: boolean;
-  /**
-   * Позволяет подменить источники рандома в PlatformSpawnSystem (для детерминизма).
-   * Если не передано — используется дефолтное поведение PlatformSpawnSystem.
-   */
-  platformRandom?: ConstructorParameters<typeof PlatformSpawnSystem>[0];
-  platformRandomSize?: ConstructorParameters<typeof PlatformSpawnSystem>[1];
-  platformRandomRocket?: ConstructorParameters<typeof PlatformSpawnSystem>[2];
-  rocketBoosterRandom?: ConstructorParameters<typeof RocketBoosterSystem>[0];
+	screen: Screen;
+	inputStrategy: InputStrategy;
+	renderer?: CanvasRenderer;
+	audioPlayer?: AudioPlayer;
+	includeRender?: boolean;
+	includeAudio?: boolean;
+	/**
+	 * Позволяет подменить источники рандома в PlatformSpawnSystem (для детерминизма).
+	 * Если не передано — используется дефолтное поведение PlatformSpawnSystem.
+	 */
+	platformRandom?: ConstructorParameters<typeof PlatformSpawnSystem>[0];
+	platformRandomSize?: ConstructorParameters<typeof PlatformSpawnSystem>[1];
+	platformRandomRocket?: ConstructorParameters<typeof PlatformSpawnSystem>[2];
+	rocketBoosterRandom?: ConstructorParameters<typeof RocketBoosterSystem>[0];
 };
 
 export function registerGameSystems(
-  world: World,
-  deps: RegisterGameSystemsDeps,
+	world: World,
+	deps: RegisterGameSystemsDeps,
 ) {
-  const physicsWorld = new PhysicsWorld(world, deps.viewportSize);
+	const physicsWorld = new PhysicsWorld(world, deps.screen);
 
-  world.registerSystem(new CheatSystem());
-  world.registerSystem(new InputSystem(deps.inputStrategy));
-  world.registerSystem(new MovementSystem());
-  world.registerSystem(new JumpSystem());
-  world.registerSystem(physicsWorld);
-  world.registerSystem(new CoinSystem());
-  world.registerSystem(new RocketBoosterSystem(deps.rocketBoosterRandom));
-  world.registerSystem(new PhysicsSystem(physicsWorld));
-  world.registerSystem(new RocketFlightSystem());
-  world.registerSystem(new FacingSystem());
-  world.registerSystem(new CameraSystem(deps.viewportSize));
-  world.registerSystem(new DeathSystem());
-  world.registerSystem(new RestartSystem(deps.viewportSize));
-  world.registerSystem(
-    new PlatformSpawnSystem(
-      deps.platformRandom,
-      deps.platformRandomSize,
-      deps.platformRandomRocket,
-    ),
-  );
-  world.registerSystem(new PlatformSystem());
-  world.registerSystem(new AnimatedSpriteSystem());
-  world.registerSystem(new PlayerAnimationStateSystem());
+	world.registerSystem(new CheatSystem());
+	world.registerSystem(new InputSystem(deps.inputStrategy));
+	world.registerSystem(new MovementSystem());
+	world.registerSystem(new JumpSystem());
+	world.registerSystem(physicsWorld);
+	world.registerSystem(new CoinSystem());
+	world.registerSystem(new RocketBoosterSystem(deps.rocketBoosterRandom));
+	world.registerSystem(new PhysicsSystem(physicsWorld));
+	world.registerSystem(new RocketFlightSystem());
+	world.registerSystem(new FacingSystem());
+	world.registerSystem(new CameraSystem(deps.screen));
+	world.registerSystem(new DeathSystem(deps.screen));
+	world.registerSystem(new RestartSystem(deps.screen));
+	world.registerSystem(
+		new PlatformSpawnSystem(
+			deps.platformRandom,
+			deps.platformRandomSize,
+			deps.platformRandomRocket,
+		),
+	);
 
-  if (deps.includeAudio && deps.audioPlayer) {
-    world.registerSystem(new AudioSystem(deps.audioPlayer));
-  }
+	world.registerSystem(new PlatformSystem());
+	world.registerSystem(new AnimatedSpriteSystem());
+	world.registerSystem(new PlayerAnimationStateSystem());
 
-  world.registerSystem(new CounterSystem());
-  world.registerSystem(new FPSSystem());
+	if (deps.includeAudio && deps.audioPlayer) {
+		world.registerSystem(new AudioSystem(deps.audioPlayer));
+	}
 
-  if (deps.includeRender && deps.renderer) {
-    world.registerSystem(new RenderSystem(deps.renderer));
-  }
+	world.registerSystem(new CounterSystem());
+	world.registerSystem(new FPSSystem());
 
-  return { physicsWorld };
+	if (deps.includeRender && deps.renderer) {
+		world.registerSystem(new RenderSystem(deps.renderer, deps.screen));
+	}
+
+	return { physicsWorld };
 }

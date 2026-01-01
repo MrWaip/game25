@@ -1,400 +1,421 @@
 import type { SpriteName } from "../assets";
 import { AssetsManager } from "../core/assetsManager";
+import { Screen } from "../core/screen";
 import type { AABB } from "../primitives/aabb";
 import { Vec2 } from "../primitives/vec2-gl";
 
 export interface IRenderer {
-  clear(): void;
+	clear(): void;
 
-  renderAnimated(sprite: RenderAnimated): void;
+	renderAnimated(sprite: RenderAnimated): void;
 
-  renderPrimitive(render: RenderPrimitive): void;
+	renderPrimitive(render: RenderPrimitive): void;
 
-  debugAABB(aabb: AABB, color: string, name: string | undefined): void;
+	debugAABB(aabb: AABB, color: string, name: string | undefined): void;
 
-  renderSprite(sprite: RenderSprite): void;
+	renderSprite(sprite: RenderSprite): void;
 
-  setCamera(camera: Camera): void;
+	setCamera(camera: Camera): void;
 
-  renderText(text: RenderText): void;
+	renderText(text: RenderText): void;
 }
 
 type Camera = {
-  viewport: Vec2;
-  zoom: number;
-  position: Vec2;
+	zoom: number;
+	position: Vec2;
 };
 
 type RenderText = {
-  text: string[][];
-  position: Vec2;
-  offset: Vec2;
-  static: boolean;
-  fontSize: number;
-  color: string;
+	text: string[][];
+	position: Vec2;
+	offset: Vec2;
+	static: boolean;
+	fontSize: number;
+	color: string;
 };
 
 type RenderAnimated = {
-  name: SpriteName;
-  frame: number;
-  direction: "right" | "left";
-  position: Vec2;
-  offset: Vec2;
-  size: Vec2;
-  spriteSize: Vec2;
-  cols?: number;
+	name: SpriteName;
+	frame: number;
+	direction: "right" | "left";
+	position: Vec2;
+	offset: Vec2;
+	size: Vec2;
+	spriteSize: Vec2;
+	cols?: number;
 };
 
 type RenderPrimitive = {
-  color: string;
-  form: "rect";
-  position: Vec2;
-  size: Vec2;
-  offset: Vec2;
-  filled: boolean;
+	color: string;
+	form: "rect";
+	position: Vec2;
+	size: Vec2;
+	offset: Vec2;
+	filled: boolean;
 };
 
 type RenderSprite = {
-  alpha: number;
-  imageName: SpriteName;
-  position: Vec2;
-  offset: Vec2;
-  size: Vec2;
-  spriteSize: Vec2;
-  spriteOffset: Vec2;
-  static: boolean;
-  fitToSize?: boolean;
+	alpha: number;
+	imageName: SpriteName;
+	position: Vec2;
+	offset: Vec2;
+	size: Vec2;
+	spriteSize: Vec2;
+	spriteOffset: Vec2;
+	static: boolean;
+	fitToSize?: boolean;
 };
 
 export class CanvasRenderer implements IRenderer {
-  #canvas: HTMLCanvasElement;
-  #ctx: CanvasRenderingContext2D;
-  #assetsManager: AssetsManager;
-  #camera: Camera | undefined;
-  #viewportSize: Vec2;
+	#canvas: HTMLCanvasElement;
+	#ctx: CanvasRenderingContext2D;
+	#assetsManager: AssetsManager;
+	#camera: Camera | undefined;
+	#screen: Screen;
 
-  constructor(
-    canvas: HTMLCanvasElement,
-    assetsManager: AssetsManager,
-    viewportSize: Vec2,
-  ) {
-    this.#canvas = canvas;
-    this.#ctx = canvas.getContext("2d")!;
-    this.#assetsManager = assetsManager;
-    this.#camera = undefined;
-    this.#viewportSize = viewportSize;
-  }
+	constructor(
+		canvas: HTMLCanvasElement,
+		assetsManager: AssetsManager,
+		screen: Screen,
+	) {
+		this.#canvas = canvas;
+		this.#ctx = canvas.getContext("2d")!;
+		this.#assetsManager = assetsManager;
+		this.#camera = undefined;
+		this.#screen = screen;
+	}
 
-  setCamera(camera: Camera): void {
-    const fitX = this.#viewportSize[0] / camera.viewport[0];
-    const fitY = this.#viewportSize[1] / camera.viewport[1];
-    const fitScale = Math.min(fitX, fitY);
+	setCamera(camera: Camera): void {
+		const visibleWorldSize = this.#screen.getCameraWorldSize(camera.zoom);
 
-    this.#camera = {
-      position: camera.position,
-      viewport: camera.viewport,
-      zoom: fitScale * camera.zoom,
-    };
-  }
+		const fitX = this.#screen.bufferSize[0] / visibleWorldSize[0];
+		const fitY = this.#screen.bufferSize[1] / visibleWorldSize[1];
+		const fitScale = Math.min(fitX, fitY);
 
-  get camera(): Camera {
-    if (!this.#camera) throw new Error("Camera is not set");
+		this.#camera = {
+			position: camera.position,
+			zoom: fitScale * camera.zoom,
+		};
+	}
 
-    return this.#camera;
-  }
+	get camera(): Camera {
+		if (!this.#camera) throw new Error("Camera is not set");
 
-  renderAnimated(sprite: RenderAnimated): void {
-    const worldCenter = Vec2.create();
-    Vec2.add(worldCenter, sprite.position, sprite.offset);
+		return this.#camera;
+	}
 
-    const screenCenter = this.worldToCanvas(worldCenter);
-    const scaledSize = Vec2.create();
-    Vec2.scale(scaledSize, sprite.size, this.camera.zoom);
-    const halfSize = Vec2.create();
-    Vec2.scale(halfSize, scaledSize, 0.5);
-    const topLeft = Vec2.create();
-    Vec2.sub(topLeft, screenCenter, halfSize);
+	renderAnimated(sprite: RenderAnimated): void {
+		const worldCenter = Vec2.create();
+		Vec2.add(worldCenter, sprite.position, sprite.offset);
 
-    const cols = sprite.cols;
-    let frameOffsetX: number;
-    let frameOffsetY: number;
+		const screenCenter = this.worldToCanvas(worldCenter);
+		const scaledSize = Vec2.create();
+		Vec2.scale(scaledSize, sprite.size, this.camera.zoom);
+		const halfSize = Vec2.create();
+		Vec2.scale(halfSize, scaledSize, 0.5);
+		const topLeft = Vec2.create();
+		Vec2.sub(topLeft, screenCenter, halfSize);
 
-    if (cols !== undefined) {
-      const col = sprite.frame % cols;
-      const row = Math.floor(sprite.frame / cols);
-      frameOffsetX = sprite.spriteSize[0] * col;
-      frameOffsetY = sprite.spriteSize[1] * row;
-    } else {
-      frameOffsetX = sprite.spriteSize[0] * sprite.frame;
-      frameOffsetY = 0;
-    }
+		const cols = sprite.cols;
+		let frameOffsetX: number;
+		let frameOffsetY: number;
 
-    const image = this.#assetsManager.getImage(sprite.name);
+		if (cols !== undefined) {
+			const col = sprite.frame % cols;
+			const row = Math.floor(sprite.frame / cols);
+			frameOffsetX = sprite.spriteSize[0] * col;
+			frameOffsetY = sprite.spriteSize[1] * row;
+		} else {
+			frameOffsetX = sprite.spriteSize[0] * sprite.frame;
+			frameOffsetY = 0;
+		}
 
-    this.#ctx.save();
+		const image = this.#assetsManager.getImage(sprite.name);
 
-    if (sprite.direction === "left") {
-      this.#ctx.scale(-1, 1);
+		this.#ctx.save();
 
-      this.#ctx.drawImage(
-        image,
-        frameOffsetX,
-        frameOffsetY,
-        sprite.spriteSize[0],
-        sprite.spriteSize[1],
-        -topLeft[0] - scaledSize[0],
-        topLeft[1],
-        scaledSize[0],
-        scaledSize[1],
-      );
-    } else {
-      this.#ctx.drawImage(
-        image,
-        frameOffsetX,
-        frameOffsetY,
-        sprite.spriteSize[0],
-        sprite.spriteSize[1],
-        topLeft[0],
-        topLeft[1],
-        scaledSize[0],
-        scaledSize[1],
-      );
-    }
+		if (sprite.direction === "left") {
+			this.#ctx.scale(-1, 1);
 
-    this.#ctx.restore();
-  }
+			this.#ctx.drawImage(
+				image,
+				frameOffsetX,
+				frameOffsetY,
+				sprite.spriteSize[0],
+				sprite.spriteSize[1],
+				-topLeft[0] - scaledSize[0],
+				topLeft[1],
+				scaledSize[0],
+				scaledSize[1],
+			);
+		} else {
+			this.#ctx.drawImage(
+				image,
+				frameOffsetX,
+				frameOffsetY,
+				sprite.spriteSize[0],
+				sprite.spriteSize[1],
+				topLeft[0],
+				topLeft[1],
+				scaledSize[0],
+				scaledSize[1],
+			);
+		}
 
-  renderSprite(sprite: RenderSprite) {
-    const image = this.#assetsManager.getImage(sprite.imageName);
+		this.#ctx.restore();
+	}
 
-    this.#ctx.save();
+	renderSprite(sprite: RenderSprite) {
+		const image = this.#assetsManager.getImage(sprite.imageName);
 
-    this.#ctx.globalAlpha = sprite.alpha;
+		this.#ctx.save();
 
-    let screenCenter: Vec2;
-    let scaledSize: Vec2;
-    let scaledTile: Vec2;
+		this.#ctx.globalAlpha = sprite.alpha;
 
-    if (sprite.static) {
-      screenCenter = Vec2.create();
-      Vec2.add(screenCenter, sprite.position, sprite.offset);
-      scaledSize = sprite.size;
-      scaledTile = sprite.spriteSize;
-    } else {
-      const worldCenter = Vec2.create();
-      Vec2.add(worldCenter, sprite.position, sprite.offset);
-      screenCenter = this.worldToCanvas(worldCenter);
-      scaledSize = Vec2.create();
-      Vec2.scale(scaledSize, sprite.size, this.camera.zoom);
-      scaledTile = Vec2.create();
-      Vec2.scale(scaledTile, sprite.spriteSize, this.camera.zoom);
-    }
+		let screenCenter: Vec2;
+		let scaledSize: Vec2;
+		let scaledTile: Vec2;
 
-    const halfSize = Vec2.create();
-    Vec2.scale(halfSize, scaledSize, 0.5);
-    const topLeft = Vec2.create();
-    Vec2.sub(topLeft, screenCenter, halfSize);
+		if (sprite.static) {
+			const pixelRatio = this.#screen.pixelRatio;
+			screenCenter = Vec2.create();
+			Vec2.add(screenCenter, sprite.position, sprite.offset);
+			Vec2.scale(screenCenter, screenCenter, pixelRatio);
+			scaledSize = Vec2.create();
+			Vec2.scale(scaledSize, sprite.size, pixelRatio);
+			scaledTile = sprite.spriteSize;
+		} else {
+			const worldCenter = Vec2.create();
+			Vec2.add(worldCenter, sprite.position, sprite.offset);
+			screenCenter = this.worldToCanvas(worldCenter);
+			scaledSize = Vec2.create();
+			Vec2.scale(scaledSize, sprite.size, this.camera.zoom);
+			scaledTile = Vec2.create();
+			Vec2.scale(scaledTile, sprite.spriteSize, this.camera.zoom);
+		}
 
-    if (sprite.fitToSize) {
-      this.#ctx.drawImage(
-        image,
-        sprite.spriteOffset[0],
-        sprite.spriteOffset[1],
-        sprite.spriteSize[0],
-        sprite.spriteSize[1],
-        topLeft[0],
-        topLeft[1],
-        scaledSize[0],
-        scaledSize[1],
-      );
+		const halfSize = Vec2.create();
+		Vec2.scale(halfSize, scaledSize, 0.5);
+		const topLeft = Vec2.create();
+		Vec2.sub(topLeft, screenCenter, halfSize);
 
-      this.#ctx.restore();
-      return;
-    }
+		if (sprite.fitToSize) {
+			this.#ctx.drawImage(
+				image,
+				sprite.spriteOffset[0],
+				sprite.spriteOffset[1],
+				sprite.spriteSize[0],
+				sprite.spriteSize[1],
+				topLeft[0],
+				topLeft[1],
+				scaledSize[0],
+				scaledSize[1],
+			);
 
-    const cols = Math.ceil(scaledSize[0] / scaledTile[0]);
-    const rows = Math.ceil(scaledSize[1] / scaledTile[1]);
+			this.#ctx.restore();
+			return;
+		}
 
-    for (let y = 0; y < rows; y++) {
-      const dstY = topLeft[1] + y * scaledTile[1];
-      const remainingH = scaledSize[1] - y * scaledTile[1];
-      if (remainingH <= 0) break;
-      const drawH = Math.min(scaledTile[1], remainingH);
+		const cols = Math.ceil(scaledSize[0] / scaledTile[0]);
+		const rows = Math.ceil(scaledSize[1] / scaledTile[1]);
 
-      for (let x = 0; x < cols; x++) {
-        const dstX = topLeft[0] + x * scaledTile[0];
-        const remainingW = scaledSize[0] - x * scaledTile[0];
-        if (remainingW <= 0) break;
-        const drawW = Math.min(scaledTile[0], remainingW);
+		for (let y = 0; y < rows; y++) {
+			const dstY = topLeft[1] + y * scaledTile[1];
+			const remainingH = scaledSize[1] - y * scaledTile[1];
+			if (remainingH <= 0) break;
+			const drawH = Math.min(scaledTile[1], remainingH);
 
-        const sourceW = sprite.static ? drawW : drawW / this.camera.zoom;
-        const sourceH = sprite.static ? drawH : drawH / this.camera.zoom;
+			for (let x = 0; x < cols; x++) {
+				const dstX = topLeft[0] + x * scaledTile[0];
+				const remainingW = scaledSize[0] - x * scaledTile[0];
+				if (remainingW <= 0) break;
+				const drawW = Math.min(scaledTile[0], remainingW);
 
-        this.#ctx.drawImage(
-          image,
-          sprite.spriteOffset[0],
-          sprite.spriteOffset[1],
-          sourceW,
-          sourceH,
-          dstX,
-          dstY,
-          drawW,
-          drawH,
-        );
-      }
-    }
+				const sourceW = sprite.static
+					? drawW / this.#screen.pixelRatio
+					: drawW / this.camera.zoom;
+				const sourceH = sprite.static
+					? drawH / this.#screen.pixelRatio
+					: drawH / this.camera.zoom;
 
-    this.#ctx.restore();
-  }
+				this.#ctx.drawImage(
+					image,
+					sprite.spriteOffset[0],
+					sprite.spriteOffset[1],
+					sourceW,
+					sourceH,
+					dstX,
+					dstY,
+					drawW,
+					drawH,
+				);
+			}
+		}
 
-  renderText(text: RenderText): void {
-    const ctx = this.#ctx;
-    ctx.save();
+		this.#ctx.restore();
+	}
 
-    const fontSize = text.fontSize;
-    const color = text.color ?? "white";
-    const lineHeight = fontSize * 1.2;
-    const columnSpacing = 12;
-    const centerCols = true;
+	renderText(text: RenderText): void {
+		const ctx = this.#ctx;
+		ctx.save();
 
-    ctx.font = `bold ${fontSize}px Inter, system-ui, sans-serif`;
-    ctx.fillStyle = color;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
+		const fontSize = text.fontSize;
+		const color = text.color ?? "white";
+		const pixelRatio = this.#screen.pixelRatio;
+		const scaledFontSize = text.static ? fontSize * pixelRatio : fontSize;
+		const lineHeight = scaledFontSize * 1.2;
+		const columnSpacing = 12 * (text.static ? pixelRatio : 1);
+		const centerCols = true;
 
-    let screenPos = Vec2.create();
-    Vec2.add(screenPos, text.position, text.offset);
+		ctx.font = `bold ${scaledFontSize}px Inter, system-ui, sans-serif`;
+		ctx.fillStyle = color;
+		ctx.textAlign = "left";
+		ctx.textBaseline = "top";
 
-    if (text.static) {
-      Vec2.set(screenPos, screenPos[0], this.#canvas.height - screenPos[1]);
-    } else {
-      const worldPos = screenPos;
-      screenPos = this.worldToCanvas(worldPos);
-    }
+		let screenPos = Vec2.create();
+		Vec2.add(screenPos, text.position, text.offset);
 
-    const rows = text.text;
+		if (text.static) {
+			const bufferHeight = this.#screen.bufferSize[1];
+			Vec2.scale(screenPos, screenPos, pixelRatio);
+			Vec2.set(screenPos, screenPos[0], bufferHeight - screenPos[1]);
+		} else {
+			const worldPos = screenPos;
+			screenPos = this.worldToCanvas(worldPos);
+		}
 
-    const colCount = Math.max(...rows.map((r) => r.length));
-    const colWidths = new Array(colCount).fill(0);
-    const cellWidths: number[][] = [];
+		const rows = text.text;
 
-    for (let row = 0; row < rows.length; row++) {
-      const rowWidths: number[] = [];
-      for (let col = 0; col < rows[row].length; col++) {
-        const cell = rows[row][col];
-        const w = ctx.measureText(cell).width;
-        rowWidths.push(w);
-        if (w > colWidths[col]) colWidths[col] = w;
-      }
-      cellWidths.push(rowWidths);
-    }
+		const colCount = Math.max(...rows.map((r) => r.length));
+		const colWidths = new Array(colCount).fill(0);
+		const cellWidths: number[][] = [];
 
-    for (let row = 0; row < rows.length; row++) {
-      const y = screenPos[1] + row * lineHeight;
-      const cells = rows[row];
+		for (let row = 0; row < rows.length; row++) {
+			const rowWidths: number[] = [];
+			for (let col = 0; col < rows[row].length; col++) {
+				const cell = rows[row][col];
+				const w = ctx.measureText(cell).width;
+				rowWidths.push(w);
+				if (w > colWidths[col]) colWidths[col] = w;
+			}
+			cellWidths.push(rowWidths);
+		}
 
-      let x = screenPos[0];
-      for (let col = 0; col < cells.length; col++) {
-        const cell = cells[col];
-        const colWidth = colWidths[col];
-        const cellWidth = cellWidths[row][col];
+		for (let row = 0; row < rows.length; row++) {
+			const y = screenPos[1] + row * lineHeight;
+			const cells = rows[row];
 
-        if (centerCols) {
-          const centeredX = x + (colWidth - cellWidth) / 2;
-          ctx.fillText(cell, centeredX, y);
-        } else {
-          ctx.fillText(cell, x, y);
-        }
+			let x = screenPos[0];
+			for (let col = 0; col < cells.length; col++) {
+				const cell = cells[col];
+				const colWidth = colWidths[col];
+				const cellWidth = cellWidths[row][col];
 
-        x += colWidth + columnSpacing;
-      }
-    }
-    ctx.restore();
-  }
+				if (centerCols) {
+					const centeredX = x + (colWidth - cellWidth) / 2;
+					ctx.fillText(cell, centeredX, y);
+				} else {
+					ctx.fillText(cell, x, y);
+				}
 
-  debugAABB(aabb: AABB, color: string, name: string | undefined): void {
-    this.#ctx.save();
-    this.#ctx.strokeStyle = color;
-    this.#ctx.lineWidth = 2;
+				x += colWidth + columnSpacing;
+			}
+		}
+		ctx.restore();
+	}
 
-    const topLeft = this.worldToCanvas(Vec2.fromValues(aabb.min[0], aabb.max[1]));
-    const bottomRight = this.worldToCanvas(Vec2.fromValues(aabb.max[0], aabb.min[1]));
+	debugAABB(aabb: AABB, color: string, name: string | undefined): void {
+		this.#ctx.save();
+		this.#ctx.strokeStyle = color;
+		this.#ctx.lineWidth = 2;
 
-    const width = bottomRight[0] - topLeft[0];
-    const height = bottomRight[1] - topLeft[1];
+		const topLeft = this.worldToCanvas(
+			Vec2.fromValues(aabb.min[0], aabb.max[1]),
+		);
+		const bottomRight = this.worldToCanvas(
+			Vec2.fromValues(aabb.max[0], aabb.min[1]),
+		);
 
-    this.#ctx.strokeRect(topLeft[0], topLeft[1], width, height);
+		const width = bottomRight[0] - topLeft[0];
+		const height = bottomRight[1] - topLeft[1];
 
-    if (name) {
-      this.renderText({
-        color,
-        fontSize: 10,
-        offset: Vec2.create(),
-        position: Vec2.fromValues(aabb.min[0], aabb.max[1]),
-        static: false,
-        text: [[name]],
-      });
-    }
+		this.#ctx.strokeRect(topLeft[0], topLeft[1], width, height);
 
-    this.#ctx.restore();
-  }
+		if (name) {
+			this.renderText({
+				color,
+				fontSize: 10,
+				offset: Vec2.create(),
+				position: Vec2.fromValues(aabb.min[0], aabb.max[1]),
+				static: false,
+				text: [[name]],
+			});
+		}
 
-  private worldToCamera(world: Vec2): Vec2 {
-    const rel = Vec2.create();
-    Vec2.sub(rel, world, this.camera.position);
-    const result = Vec2.create();
-    Vec2.scale(result, rel, this.camera.zoom);
-    return result;
-  }
+		this.#ctx.restore();
+	}
 
-  private cameraToCanvas(cameraPos: Vec2): Vec2 {
-    const x = this.#canvas.width / 2 + cameraPos[0];
-    const y = this.#canvas.height / 2 - cameraPos[1];
-    return Vec2.fromValues(x, y);
-  }
+	private worldToCamera(world: Vec2): Vec2 {
+		const rel = Vec2.create();
+		Vec2.sub(rel, world, this.camera.position);
+		const result = Vec2.create();
+		Vec2.scale(result, rel, this.camera.zoom);
+		return result;
+	}
 
-  private worldToCanvas(world: Vec2): Vec2 {
-    return this.cameraToCanvas(this.worldToCamera(world));
-  }
+	private cameraToCanvas(cameraPos: Vec2): Vec2 {
+		const x = this.#canvas.width / 2 + cameraPos[0];
+		const y = this.#canvas.height / 2 - cameraPos[1];
+		return Vec2.fromValues(x, y);
+	}
 
-  renderPrimitive(render: RenderPrimitive): void {
-    this.#ctx.save();
+	private worldToCanvas(world: Vec2): Vec2 {
+		return this.cameraToCanvas(this.worldToCamera(world));
+	}
 
-    this.#ctx.fillStyle = render.color;
-    this.#ctx.strokeStyle = render.color;
-    this.#ctx.lineWidth = 2;
+	renderPrimitive(render: RenderPrimitive): void {
+		this.#ctx.save();
 
-    const worldCenter = Vec2.create();
-    Vec2.add(worldCenter, render.position, render.offset);
+		this.#ctx.fillStyle = render.color;
+		this.#ctx.strokeStyle = render.color;
+		this.#ctx.lineWidth = 2;
 
-    const screenCenter = this.worldToCanvas(worldCenter);
-    const scaledSize = Vec2.create();
-    Vec2.scale(scaledSize, render.size, this.camera.zoom);
+		const worldCenter = Vec2.create();
+		Vec2.add(worldCenter, render.position, render.offset);
 
-    const halfSize = Vec2.create();
-    Vec2.scale(halfSize, scaledSize, 0.5);
-    const topLeft = Vec2.create();
-    Vec2.sub(topLeft, screenCenter, halfSize);
+		const screenCenter = this.worldToCanvas(worldCenter);
+		const scaledSize = Vec2.create();
+		Vec2.scale(scaledSize, render.size, this.camera.zoom);
 
-    switch (render.form) {
-      case "rect":
-        if (render.filled) {
-          this.#ctx.fillRect(topLeft[0], topLeft[1], scaledSize[0], scaledSize[1]);
-        } else {
-          this.#ctx.strokeRect(
-            topLeft[0],
-            topLeft[1],
-            scaledSize[0],
-            scaledSize[1],
-          );
-        }
-        break;
-    }
+		const halfSize = Vec2.create();
+		Vec2.scale(halfSize, scaledSize, 0.5);
+		const topLeft = Vec2.create();
+		Vec2.sub(topLeft, screenCenter, halfSize);
 
-    this.#ctx.restore();
-  }
+		switch (render.form) {
+			case "rect":
+				if (render.filled) {
+					this.#ctx.fillRect(
+						topLeft[0],
+						topLeft[1],
+						scaledSize[0],
+						scaledSize[1],
+					);
+				} else {
+					this.#ctx.strokeRect(
+						topLeft[0],
+						topLeft[1],
+						scaledSize[0],
+						scaledSize[1],
+					);
+				}
+				break;
+		}
 
-  clear(): void {
-    this.#ctx.reset();
-  }
+		this.#ctx.restore();
+	}
+
+	clear(): void {
+		this.#ctx.reset();
+	}
 }

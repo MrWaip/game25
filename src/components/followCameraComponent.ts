@@ -1,13 +1,13 @@
 import { Component } from "./component";
 
 export class FollowCameraComponent extends Component {
-  public followX: boolean;
-  public followY: boolean;
+	public followX: boolean;
+	public followY: boolean;
 
-  constructor(followX: boolean, followY: boolean) {
-    super();
+	constructor(followX: boolean, followY: boolean) {
+		super();
 
-    this.followX = followX;
-    this.followY = followY;
-  }
+		this.followX = followX;
+		this.followY = followY;
+	}
 }
