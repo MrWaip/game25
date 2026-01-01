@@ -297,9 +297,12 @@ export class CanvasRenderer implements IRenderer {
 		const fontSize = text.fontSize;
 		const color = text.color ?? "white";
 		const pixelRatio = this.#screen.pixelRatio;
-		const scaledFontSize = text.static ? fontSize * pixelRatio : fontSize;
+		const effectivePixelRatio = text.static ? Math.min(pixelRatio, 2) : 1;
+		const scaledFontSize = text.static
+			? fontSize * effectivePixelRatio
+			: fontSize;
 		const lineHeight = scaledFontSize * 1.2;
-		const columnSpacing = 12 * (text.static ? pixelRatio : 1);
+		const columnSpacing = text.static ? 12 * effectivePixelRatio : 12;
 		const centerCols = true;
 
 		ctx.font = `bold ${scaledFontSize}px Inter, system-ui, sans-serif`;
