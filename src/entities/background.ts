@@ -15,7 +15,7 @@ export function createBackground(size: Vec2): Component[] {
 		size,
 		offset,
 		spriteOffset: Vec2.create(),
-		spriteSize: Vec2.fromValues(1248, 832),
+		spriteSize: Vec2.fromValues(800, 1024),
 		static: true,
 		fitToSize: true,
 		tileX: true,
