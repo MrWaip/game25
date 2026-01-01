@@ -64,6 +64,7 @@ type RenderSprite = {
 	spriteOffset: Vec2;
 	static: boolean;
 	fitToSize?: boolean;
+	tileX?: boolean;
 };
 
 export class CanvasRenderer implements IRenderer {
@@ -199,7 +200,7 @@ export class CanvasRenderer implements IRenderer {
 		const topLeft = Vec2.create();
 		Vec2.sub(topLeft, screenCenter, halfSize);
 
-		if (sprite.fitToSize) {
+		if (sprite.fitToSize && !sprite.tileX) {
 			this.#ctx.drawImage(
 				image,
 				sprite.spriteOffset[0],
@@ -211,6 +212,40 @@ export class CanvasRenderer implements IRenderer {
 				scaledSize[0],
 				scaledSize[1],
 			);
+
+			this.#ctx.restore();
+			return;
+		}
+
+		if (sprite.tileX) {
+			const tileWidth = sprite.static
+				? sprite.spriteSize[0] * this.#screen.pixelRatio
+				: scaledTile[0];
+			const cols = Math.ceil(scaledSize[0] / tileWidth);
+			const stretchedHeight = scaledSize[1];
+
+			for (let x = 0; x < cols; x++) {
+				const dstX = topLeft[0] + x * tileWidth;
+				const remainingW = scaledSize[0] - x * tileWidth;
+				if (remainingW <= 0) break;
+				const drawW = Math.min(tileWidth, remainingW);
+
+				const sourceW = sprite.static
+					? drawW / this.#screen.pixelRatio
+					: drawW / this.camera.zoom;
+
+				this.#ctx.drawImage(
+					image,
+					sprite.spriteOffset[0],
+					sprite.spriteOffset[1],
+					sourceW,
+					sprite.spriteSize[1],
+					dstX,
+					topLeft[1],
+					drawW,
+					stretchedHeight,
+				);
+			}
 
 			this.#ctx.restore();
 			return;

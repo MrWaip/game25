@@ -10,6 +10,7 @@ type Options = {
 	spriteOffset?: Vec2;
 	static?: boolean;
 	fitToSize?: boolean;
+	tileX?: boolean;
 	alpha?: number;
 };
 
@@ -21,6 +22,7 @@ export class SpriteRenderComponent extends Component {
 	#spriteOffset: Vec2;
 	#static: boolean;
 	#fitToSize: boolean;
+	#tileX: boolean;
 	#enabled: boolean;
 	#alpha: number;
 
@@ -33,6 +35,7 @@ export class SpriteRenderComponent extends Component {
 		this.#spriteOffset = options.spriteOffset ?? Vec2.create();
 		this.#static = options.static ?? false;
 		this.#fitToSize = options.fitToSize ?? false;
+		this.#tileX = options.tileX ?? false;
 		this.#enabled = true;
 		this.#alpha = options.alpha ?? 1;
 	}
@@ -51,6 +54,10 @@ export class SpriteRenderComponent extends Component {
 
 	get fitToSize(): boolean {
 		return this.#fitToSize;
+	}
+
+	get tileX(): boolean {
+		return this.#tileX;
 	}
 
 	get size(): Vec2 {

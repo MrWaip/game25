@@ -26,10 +26,11 @@ type GameOptions = {
 	debug?: boolean;
 	seed?: string;
 	targetFps?: 30 | 60 | 144;
-	orthographicSize: {
+	screenSize: {
 		width: number;
 		height: number;
 	};
+	orthographicSize: number;
 	pixelRatio?: number;
 	onEvent?: GameEventListener;
 };
@@ -79,13 +80,12 @@ export async function createGame(options: GameOptions): Promise<Result> {
 
 	const canvas = createGameWithTouchHints(options.node, options.inputMode);
 	const screenSize = Vec2.fromValues(
-		options.orthographicSize.width,
-		options.orthographicSize.height,
+		options.screenSize.width,
+		options.screenSize.height,
 	);
 
 	const pixelRatio = options.pixelRatio ?? 1;
-	const orthographicSize = options.orthographicSize.height / 2;
-	const screen = new Screen(screenSize, pixelRatio, orthographicSize);
+	const screen = new Screen(screenSize, pixelRatio, options.orthographicSize);
 
 	canvas.width = screen.bufferSize[0];
 	canvas.height = screen.bufferSize[1];

@@ -14,24 +14,30 @@ function createDefaultInputStrategy() {
 
 	const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-	if (isCoarsePointer || hasTouch) {
+	const screenSize = {
+		width: window.innerWidth,
+		height: window.innerHeight,
+	};
+
+	const baseOrthographicSize = screenSize.height / 2;
+	const isMobile = isCoarsePointer || hasTouch;
+	const mobileScale = isMobile ? 1.5 : 1;
+	const orthographicSize = baseOrthographicSize * mobileScale;
+
+	if (isMobile) {
 		return {
 			inputMode: "touch" as const,
 			pixelSize: window.devicePixelRatio,
-			orthographicSize: {
-				width: window.innerWidth,
-				height: window.innerHeight,
-			},
+			screenSize,
+			orthographicSize,
 		};
 	}
 
 	return {
 		inputMode: "keyboard" as const,
 		pixelSize: window.devicePixelRatio,
-		orthographicSize: {
-			width: window.innerWidth,
-			height: window.innerHeight,
-		},
+		screenSize,
+		orthographicSize,
 	};
 }
 
@@ -44,6 +50,7 @@ if (url.searchParams.get("key") === "1c4482c9-ad71-48e1-b649-a8835ea69999") {
 		inputMode: device.inputMode,
 		debug: url.searchParams.has("debug"),
 		seed: url.searchParams.get("seed") || undefined,
+		screenSize: device.screenSize,
 		orthographicSize: device.orthographicSize,
 		pixelRatio: device.pixelSize,
 	});

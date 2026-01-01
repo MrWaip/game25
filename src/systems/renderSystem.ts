@@ -131,6 +131,7 @@ export class RenderSystem implements ISystem {
 				spriteSize: sprite.spriteSize,
 				static: sprite.static,
 				fitToSize: sprite.fitToSize,
+				tileX: sprite.tileX,
 				alpha: sprite.alpha,
 			});
 		}
