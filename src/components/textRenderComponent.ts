@@ -1,5 +1,5 @@
-import { Vec2 } from "../primitives/vec2-gl";
-import { Component } from "./component";
+import { Vec2 } from "@/primitives/vec2-gl";
+import { Component } from "@/components/component";
 
 type Options = {
 	text: string[][];

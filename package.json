@@ -1,55 +1,54 @@
 {
 	"name": "game-25",
-	"private": true,
 	"version": "0.0.0",
-	"type": "module",
-	"main": "./dist/the-ozon-game.js",
-	"module": "./dist/the-ozon-game.js",
-	"types": "./dist/export/index.d.ts",
-	"exports": {
-		".": {
-			"import": "./dist/the-ozon-game.js",
-			"types": "./dist/export/index.d.ts"
-		}
-	},
+	"private": true,
 	"files": [
 		"dist"
 	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./style.css": "./dist/style.css",
+		"./defense": {
+			"types": "./dist/defense.d.ts",
+			"import": "./dist/defense.js"
+		},
+		"./arcade": {
+			"types": "./dist/arcade.d.ts",
+			"import": "./dist/arcade.js"
+		}
+	},
 	"scripts": {
-		"dev": "vite",
-		"build:site": "vite build",
-		"build:lib": "tsdown",
-		"preview": "vite preview",
-		"lint": "eslint ./src",
-		"format": "npx @biomejs/biome format --write",
-		"check": "tsc --noEmit",
-		"smoke": "npm run lint && npm run check && npm run test && npm run build:lib",
-		"test": "vitest run",
-		"test:ui": "vitest --ui",
-		"test:run": "vitest run",
-		"test:stress": "NODE_OPTIONS=--expose-gc vitest run --config vitest.stress.config.ts"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "2.3.10",
-		"@eslint/js": "9.39.2",
-		"@tauri-apps/cli": "2.9.6",
-		"@types/node": "22.12.0",
-		"@vitest/ui": "4.0.15",
-		"eslint": "9.39.2",
-		"globals": "16.5.0",
-		"happy-dom": "20.0.11",
-		"jiti": "2.6.1",
-		"tsdown": "0.17.0",
-		"typescript": "5.9.3",
-		"typescript-eslint": "8.49.0",
-		"vite": "npm:rolldown-vite@7.2.11",
-		"vitest": "4.0.15"
-	},
-	"overrides": {
-		"vite": "npm:rolldown-vite@7.2.11"
+		"dev": "vp dev",
+		"build:site": "vp build",
+		"build:lib": "vp pack && cp src/style.css dist/style.css",
+		"preview": "vp preview",
+		"lint": "vp lint src --deny-warnings",
+		"format": "vp fmt",
+		"check": "vp check src",
+		"smoke": "npm run check && npm test && npm run build:lib",
+		"test": "vp test run --project unit",
+		"test:stress": "NODE_OPTIONS=--expose-gc vp test run --project stress",
+		"test:browser": "playwright test"
 	},
 	"dependencies": {
 		"@timohausmann/quadtree-ts": "2.3.0",
 		"gl-matrix": "3.4.4"
+	},
+	"devDependencies": {
+		"@playwright/test": "1.63.0",
+		"@types/node": "22.20.2",
+		"happy-dom": "20.14.5",
+		"typescript": "7.0.2",
+		"vite-plus": "0.3.2"
+	},
+	"engines": {
+		"node": "^22.18.0 || ^24.11.0 || >=26.0.0"
 	}
 }

@@ -1,4 +1,4 @@
-import { Random } from "../primitives/random";
+import { Random } from "@/primitives/random";
 
 export class MockRandom extends Random {
 	#values: number[] = [];

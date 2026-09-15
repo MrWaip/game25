@@ -1,9 +1,8 @@
-import type { SpriteName } from "../assets";
-import { Vec2 } from "../primitives/vec2-gl";
-import { Component } from "./component";
+import { Vec2 } from "@/primitives/vec2-gl";
+import { Component } from "@/components/component";
 
-type Options = {
-	name: SpriteName;
+type Options<SpriteKey extends string> = {
+	name: SpriteKey;
 	size: Vec2;
 	offset?: Vec2;
 	spriteSize?: Vec2;
@@ -14,8 +13,10 @@ type Options = {
 	alpha?: number;
 };
 
-export class SpriteRenderComponent extends Component {
-	#name: SpriteName;
+export class SpriteRenderComponent<
+	SpriteKey extends string = string,
+> extends Component {
+	#name: SpriteKey;
 	#size: Vec2;
 	#offset: Vec2;
 	#spriteSize: Vec2;
@@ -26,7 +27,7 @@ export class SpriteRenderComponent extends Component {
 	#enabled: boolean;
 	#alpha: number;
 
-	constructor(options: Options) {
+	constructor(options: Options<SpriteKey>) {
 		super();
 		this.#name = options.name;
 		this.#size = options.size;
@@ -40,7 +41,7 @@ export class SpriteRenderComponent extends Component {
 		this.#alpha = options.alpha ?? 1;
 	}
 
-	get name(): SpriteName {
+	get name(): SpriteKey {
 		return this.#name;
 	}
 

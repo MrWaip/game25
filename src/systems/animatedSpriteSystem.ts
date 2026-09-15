@@ -2,9 +2,9 @@ import {
 	AnimationState,
 	AnimationTable,
 	AnimationTimer,
-} from "../components/animationComponent";
-import type { World } from "../core/world";
-import type { ISystem } from "./system";
+} from "@/components/animationComponent";
+import type { World } from "@/core/world";
+import type { ISystem } from "@/systems/system";
 
 export class AnimatedSpriteSystem implements ISystem {
 	update(world: World, dt: number) {

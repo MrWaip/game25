@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { EventBus } from "./eventBus";
+import { describe, it, expect, beforeEach } from "vite-plus/test";
+import { EventBus } from "@/systems/eventBus";
 
 type TestEvents = {
 	test: string;
@@ -213,4 +213,63 @@ describe("EventBus", () => {
 			expect(received2).toHaveLength(1);
 		});
 	});
+});
+
+it("returns idempotent disposers for specific and all-event subscriptions", () => {
+	const bus = new EventBus<TestEvents>();
+	const calls: string[] = [];
+	const stop = bus.on("test", (value) => calls.push(value));
+	const stopAll = bus.onAll((event) => calls.push(event));
+	bus.emit("test", "first");
+	stop();
+	stop();
+	bus.emit("test", "second");
+	stopAll();
+	stopAll();
+	bus.emit("test", "third");
+	expect(calls).toEqual(["first", "test", "test"]);
+});
+
+it("defers new subscriptions to the next emission and skips unsubscribed listeners", () => {
+	const bus = new EventBus<TestEvents>();
+	const calls: string[] = [];
+	const late = (value: string) => {
+		calls.push(`late:${value}`);
+	};
+	const all = () => {
+		calls.push("all");
+	};
+	let stopSecond = () => {};
+	bus.on("test", (value) => {
+		calls.push(`first:${value}`);
+		stopSecond();
+		bus.on("test", late);
+		bus.onAll(all);
+	});
+	stopSecond = bus.on("test", () => calls.push("removed"));
+	bus.emit("test", "one");
+	expect(calls).toEqual(["first:one"]);
+	bus.emit("test", "two");
+	expect(calls).toEqual(["first:one", "first:two", "late:two", "all"]);
+});
+
+it("keeps stale disposers from cancelling a later subscription of the same callback", () => {
+	const bus = new EventBus<TestEvents>();
+	const calls: string[] = [];
+	const listener = (value: string) => {
+		calls.push(value);
+	};
+	const all = () => {
+		calls.push("all");
+	};
+	const old = bus.on("test", listener);
+	const oldAll = bus.onAll(all);
+	old();
+	oldAll();
+	bus.on("test", listener);
+	bus.onAll(all);
+	old();
+	oldAll();
+	bus.emit("test", "current");
+	expect(calls).toEqual(["current", "all"]);
 });

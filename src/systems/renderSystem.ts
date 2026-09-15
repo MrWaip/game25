@@ -2,22 +2,22 @@ import {
 	AnimationState,
 	AnimationTable,
 	AnimationTimer,
-} from "../components/animationComponent";
-import { Camera } from "../components/cameraComponent";
-import { DebugRenderComponent } from "../components/debugRenderComponent";
-import { FacingComponent } from "../components/facingComponent";
-import { TransformComponent } from "../components/transformComponent";
-import { PrimitiveRenderComponent } from "../components/renderableComponent";
-import { SpriteRenderComponent } from "../components/spriteRenderComponent";
-import { TextRenderComponent } from "../components/textRenderComponent";
-import { Screen } from "../core/screen";
-import type { World } from "../core/world";
-import type { Entity } from "../entities/entity";
-import { AABB } from "../primitives/aabb";
-import { ORDERED_LAYERS } from "../render/layers";
-import type { IRenderer } from "../render/renderer";
-import type { ISystem } from "./system";
-import { Vec2 } from "../primitives/vec2-gl";
+} from "@/components/animationComponent";
+import { Camera } from "@/components/cameraComponent";
+import { DebugRenderComponent } from "@/components/debugRenderComponent";
+import { FacingComponent } from "@/components/facingComponent";
+import { TransformComponent } from "@/components/transformComponent";
+import { PrimitiveRenderComponent } from "@/components/renderableComponent";
+import { SpriteRenderComponent } from "@/components/spriteRenderComponent";
+import { TextRenderComponent } from "@/components/textRenderComponent";
+import { Screen } from "@/core/screen";
+import type { World } from "@/core/world";
+import type { Entity } from "@/entities/entity";
+import { AABB } from "@/primitives/aabb";
+import { ORDERED_LAYERS } from "@/render/layers";
+import type { IRenderer } from "@/render/renderer";
+import type { ISystem } from "@/systems/system";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 export class RenderSystem implements ISystem {
 	#renderer: IRenderer;

@@ -60,4 +60,3 @@
 
 - `Screen.size`:
   - web-терминология: CSS pixel size / layout size
-

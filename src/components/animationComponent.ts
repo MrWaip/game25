@@ -1,9 +1,8 @@
-import type { SpriteName } from "../assets";
-import type { Vec2 } from "../primitives/vec2-gl";
-import { Component } from "./component";
+import type { Vec2 } from "@/primitives/vec2-gl";
+import { Component } from "@/components/component";
 
-type TableOptions<T extends string> = {
-	clips: Record<T, AnimationClip>;
+type TableOptions<T extends string, SpriteKey extends string> = {
+	clips: Record<T, AnimationClip<SpriteKey>>;
 };
 
 type StateOptions<T extends string> = {
@@ -16,8 +15,8 @@ type TimerOptions = {
 	playing?: boolean;
 };
 
-export type AnimationClip = {
-	sheet: SpriteName;
+export type AnimationClip<SpriteKey extends string = string> = {
+	sheet: SpriteKey;
 	offset: Vec2;
 	size: Vec2;
 	spriteSize?: Vec2;
@@ -27,10 +26,13 @@ export type AnimationClip = {
 	cols?: number;
 };
 
-export class AnimationTable<T extends string> extends Component {
-	public clips: Record<T, AnimationClip>;
+export class AnimationTable<
+	T extends string,
+	SpriteKey extends string = string,
+> extends Component {
+	public clips: Record<T, AnimationClip<SpriteKey>>;
 
-	constructor(options: TableOptions<T>) {
+	constructor(options: TableOptions<T, SpriteKey>) {
 		super();
 
 		this.clips = options.clips;

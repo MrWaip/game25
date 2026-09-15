@@ -1,5 +1,5 @@
-import type { AABB } from "./aabb";
-import { Vec2 } from "./vec2-gl";
+import type { AABB } from "@/primitives/aabb";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 function hashString32(str: string): number {
 	let h = 0x811c9dc5;

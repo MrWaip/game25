@@ -1,5 +1,4 @@
-import type { AudioName } from "../assets";
-import type { AssetsManager } from "../core/assetsManager";
+import type { AssetsManager } from "@/core/assetsManager";
 
 export interface IAudioPlayer {
 	play(payload: PlayPayload): Promise<void> | void;
@@ -9,21 +8,26 @@ export interface IAudioPlayer {
 }
 
 type PlayPayload = {
-	name: AudioName;
+	name: string;
 	loop?: boolean;
 	volume?: number;
 };
 
 export class AudioPlayer implements IAudioPlayer {
 	#assetsManager: AssetsManager;
+	#destroyed = false;
+	#paused = false;
 
 	constructor(assetsManager: AssetsManager) {
 		this.#assetsManager = assetsManager;
 	}
 
 	async play(payload: PlayPayload) {
+		if (this.#destroyed || this.#paused) return;
 		const ctx = await this.#assetsManager.ensureAudioContext();
 		const audio = await this.#assetsManager.getAudio(payload.name);
+
+		if (this.#destroyed || this.#paused) return;
 
 		const source = ctx.createBufferSource();
 		const gain = ctx.createGain();
@@ -40,6 +44,7 @@ export class AudioPlayer implements IAudioPlayer {
 	}
 
 	pauseAll() {
+		this.#paused = true;
 		const ctx = this.#assetsManager.getCurrentAudioContext();
 		if (ctx && ctx.state === "running") {
 			ctx.suspend();
@@ -47,6 +52,7 @@ export class AudioPlayer implements IAudioPlayer {
 	}
 
 	destroy() {
+		this.#destroyed = true;
 		const ctx = this.#assetsManager.getCurrentAudioContext();
 		if (ctx && ctx.state === "running") {
 			ctx.suspend();
@@ -54,6 +60,8 @@ export class AudioPlayer implements IAudioPlayer {
 	}
 
 	resumeAll() {
+		if (this.#destroyed) return;
+		this.#paused = false;
 		const ctx = this.#assetsManager.getCurrentAudioContext();
 		if (ctx?.state === "suspended") {
 			ctx.resume();

@@ -1,5 +1,5 @@
-import type { Vec2 } from "../primitives/vec2-gl";
-import { Component } from "./component";
+import type { Vec2 } from "@/primitives/vec2-gl";
+import { Component } from "@/components/component";
 
 export type PrimitiveForm = "rect";
 

@@ -1,12 +1,13 @@
-import type { AudioName, SpriteName } from "../assets";
-
-export class AssetsManager<SpriteKey extends string = SpriteName> {
-	#images: Map<SpriteName, ImageBitmap>;
-	#audios: Map<AudioName, AudioBuffer>;
-	#audioData: Map<AudioName, ArrayBuffer>;
-	#audioDecodePromises: Map<AudioName, Promise<AudioBuffer>>;
+export class AssetsManager<
+	SpriteKey extends string = string,
+	AudioKey extends string = string,
+> {
+	#images: Map<SpriteKey, ImageBitmap>;
+	#audios: Map<AudioKey, AudioBuffer>;
+	#audioData: Map<AudioKey, ArrayBuffer>;
+	#audioDecodePromises: Map<AudioKey, Promise<AudioBuffer>>;
 	#sprites: Map<SpriteKey, string>;
-	#audioUrls: Map<AudioName, string>;
+	#audioUrls: Map<AudioKey, string>;
 	#audioCtx: AudioContext | undefined;
 
 	constructor() {
@@ -18,7 +19,7 @@ export class AssetsManager<SpriteKey extends string = SpriteName> {
 		this.#audioDecodePromises = new Map();
 	}
 
-	getImage(key: SpriteName): ImageBitmap {
+	getImage(key: SpriteKey): ImageBitmap {
 		return this.#images.get(key)!;
 	}
 
@@ -28,13 +29,13 @@ export class AssetsManager<SpriteKey extends string = SpriteName> {
 		}
 	}
 
-	addAudio(audio: Record<AudioName, string>) {
+	addAudio(audio: Record<AudioKey, string>) {
 		for (const [key, url] of Object.entries(audio)) {
-			this.#audioUrls.set(key as AudioName, url as string);
+			this.#audioUrls.set(key as AudioKey, url as string);
 		}
 	}
 
-	async getAudio(key: AudioName): Promise<AudioBuffer> {
+	async getAudio(key: AudioKey): Promise<AudioBuffer> {
 		const cached = this.#audios.get(key);
 		if (cached) return cached;
 
@@ -76,14 +77,24 @@ export class AssetsManager<SpriteKey extends string = SpriteName> {
 		return this.#audioCtx;
 	}
 
+	async destroy(): Promise<void> {
+		for (const image of this.#images.values()) image.close();
+		this.#images.clear();
+		this.#audios.clear();
+		this.#audioData.clear();
+		this.#audioDecodePromises.clear();
+		if (this.#audioCtx && this.#audioCtx.state !== "closed")
+			await this.#audioCtx.close();
+	}
+
 	async initialize(): Promise<void> {
-		await Promise.all([
+		const results = await Promise.allSettled([
 			...this.#sprites.entries().map(async ([key, url]) => {
 				const result = await fetch(url);
 				const blob = await result.blob();
 				const image = await createImageBitmap(blob);
 
-				this.#images.set(key as SpriteName, image);
+				this.#images.set(key as SpriteKey, image);
 			}),
 			...this.#audioUrls.entries().map(async ([key, url]) => {
 				const result = await fetch(url);
@@ -91,5 +102,12 @@ export class AssetsManager<SpriteKey extends string = SpriteName> {
 				this.#audioData.set(key, blob);
 			}),
 		]);
+		// A failed sibling must not leave late image loads writing after teardown.
+		const failures = results
+			.filter((result) => result.status === "rejected")
+			.map((result) => result.reason);
+		if (failures.length === 1) throw failures[0];
+		if (failures.length > 1)
+			throw new AggregateError(failures, "Asset loading failed");
 	}
 }

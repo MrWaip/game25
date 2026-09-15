@@ -1,56 +1,74 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+/* oxlint-disable typescript/no-explicit-any */
 type Listener<T> = (payload: T) => void;
-
 type AllEventsListener<E extends Record<string, any>> = <K extends keyof E>(
 	event: K,
 	payload: E[K],
 ) => void;
+type Subscription<T> = { listener: T; active: boolean };
+
+class Subscriptions<T> {
+	#entries = new Map<T, Subscription<T>>();
+	add(listener: T): () => void {
+		let entry = this.#entries.get(listener);
+		if (!entry) {
+			entry = { listener, active: true };
+			this.#entries.set(listener, entry);
+		}
+		const subscription = entry;
+		return () => {
+			if (!subscription.active) return;
+			subscription.active = false;
+			this.#entries.delete(listener);
+		};
+	}
+	remove(listener: T): void {
+		const entry = this.#entries.get(listener);
+		if (entry) entry.active = false;
+		this.#entries.delete(listener);
+	}
+	snapshot(): Subscription<T>[] {
+		return [...this.#entries.values()];
+	}
+	clear(): void {
+		for (const entry of this.#entries.values()) entry.active = false;
+		this.#entries.clear();
+	}
+}
 
 export class EventBus<E extends Record<string, any>> {
-	#listeners: Map<keyof E, Set<Listener<any>>>;
-	#allListeners: Set<AllEventsListener<E>>;
+	#listeners = new Map<keyof E, Subscriptions<Listener<any>>>();
+	#allListeners = new Subscriptions<AllEventsListener<E>>();
 
-	constructor() {
-		this.#listeners = new Map();
-		this.#allListeners = new Set();
-	}
-
-	public emit<K extends keyof E>(
+	/** Capture subscriptions at emission start; removals take effect immediately. */
+	emit<K extends keyof E>(
 		event: K,
 		...args: E[K] extends void ? [] : [E[K]]
-	) {
-		const handlers = this.#listeners.get(event);
-
-		if (handlers) {
-			for (const handler of handlers) {
-				handler(args[0]!);
-			}
+	): void {
+		const listeners = this.#listeners.get(event)?.snapshot() ?? [];
+		const allListeners = this.#allListeners.snapshot();
+		for (const entry of listeners) {
+			if (entry.active) entry.listener(args[0]!);
 		}
-
-		if (this.#allListeners.size > 0) {
-			const payload = args[0]!;
-			for (const listener of this.#allListeners) {
-				listener(event, payload);
-			}
+		for (const entry of allListeners) {
+			if (entry.active) entry.listener(event, args[0]!);
 		}
 	}
-
-	public on<K extends keyof E>(event: K, listener: Listener<E[K]>) {
-		if (!this.#listeners.has(event)) this.#listeners.set(event, new Set());
-
-		this.#listeners.get(event)!.add(listener);
+	on<K extends keyof E>(event: K, listener: Listener<E[K]>): () => void {
+		let listeners = this.#listeners.get(event);
+		if (!listeners) {
+			listeners = new Subscriptions();
+			this.#listeners.set(event, listeners);
+		}
+		return listeners.add(listener);
 	}
-
-	public onAll(listener: AllEventsListener<E>) {
-		this.#allListeners.add(listener);
+	onAll(listener: AllEventsListener<E>): () => void {
+		return this.#allListeners.add(listener);
 	}
-
-	public offAll(listener: AllEventsListener<E>) {
-		this.#allListeners.delete(listener);
+	offAll(listener: AllEventsListener<E>): void {
+		this.#allListeners.remove(listener);
 	}
-
-	public clear(): void {
+	clear(): void {
+		for (const listeners of this.#listeners.values()) listeners.clear();
 		this.#listeners.clear();
 		this.#allListeners.clear();
 	}

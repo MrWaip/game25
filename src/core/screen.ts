@@ -1,4 +1,4 @@
-import { Vec2 } from "../primitives/vec2-gl";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 export class Screen {
 	#size: Vec2;

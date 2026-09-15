@@ -1,9 +1,8 @@
-import { vi } from "vitest";
-import { CanvasRenderer } from "../render/renderer";
-import { AssetsManager } from "../core/assetsManager";
-import type { SpriteName } from "../assets";
-import { Vec2 } from "../primitives/vec2-gl";
-import { Screen } from "../core/screen";
+import { vi } from "vite-plus/test";
+import { CanvasRenderer } from "@/render/renderer";
+import { AssetsManager } from "@/core/assetsManager";
+import { Vec2 } from "@/primitives/vec2-gl";
+import { Screen } from "@/core/screen";
 
 export function createMockImageBitmap(): ImageBitmap {
 	return {
@@ -54,18 +53,18 @@ export function createMockCanvas(): {
 }
 
 type AssetsManagerWithPrivate = AssetsManager & {
-	"#images": Map<SpriteName, ImageBitmap>;
+	"#images": Map<string, ImageBitmap>;
 };
 
 export function createMockAssetsManager(): {
 	assetsManager: AssetsManager;
-	setImage: (name: SpriteName, image: ImageBitmap) => void;
+	setImage: (name: string, image: ImageBitmap) => void;
 } {
 	const assetsManager = new AssetsManager() as AssetsManagerWithPrivate;
 
-	function setImage(name: SpriteName, image: ImageBitmap) {
+	function setImage(name: string, image: ImageBitmap) {
 		if (!assetsManager["#images"]) {
-			assetsManager["#images"] = new Map<SpriteName, ImageBitmap>();
+			assetsManager["#images"] = new Map<string, ImageBitmap>();
 		}
 		assetsManager["#images"].set(name, image);
 
@@ -90,7 +89,7 @@ export function createTestRenderer(options?: {
 	canvas: HTMLCanvasElement;
 	ctx: CanvasRenderingContext2D;
 	assetsManager: AssetsManager;
-	setImage: (name: SpriteName, image: ImageBitmap) => void;
+	setImage: (name: string, image: ImageBitmap) => void;
 } {
 	const viewportSize = options?.viewportSize ?? Vec2.fromValues(800, 600);
 	const orthographicSize =

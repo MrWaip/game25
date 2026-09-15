@@ -1,17 +1,16 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Component } from "../components/component";
-import { Camera } from "../components/cameraComponent";
-import { DebugRenderComponent } from "../components/debugRenderComponent";
-import { PlayerComponent } from "../components/playerComponent";
-import { TransformComponent } from "../components/transformComponent";
-import { RenderLayerComponent } from "../components/renderLayerComponent";
-import type { Entity } from "../entities/entity";
-import type { AABB } from "../primitives/aabb";
-import type { GameEvents } from "../primitives/gameEvents";
-import { Vec2 } from "../primitives/vec2-gl";
-import { RenderLayers } from "../render/layers";
-import { EventBus } from "../systems/eventBus";
-import type { ISystem } from "../systems/system";
+import { createSystemScope } from "@/systems/systemScope";
+/* oxlint-disable typescript/no-explicit-any */
+import { Lifecycle } from "@/core/lifecycle";
+import type { Component } from "@/components/component";
+import { Camera } from "@/components/cameraComponent";
+import { DebugRenderComponent } from "@/components/debugRenderComponent";
+import { TransformComponent } from "@/components/transformComponent";
+import { RenderLayerComponent } from "@/components/renderLayerComponent";
+import type { Entity } from "@/entities/entity";
+import type { AABB } from "@/primitives/aabb";
+import { Vec2 } from "@/primitives/vec2-gl";
+import { RenderLayers } from "@/render/layers";
+import type { ISystem } from "@/systems/system";
 
 type ComponentClass<T extends Component = Component> = new (
 	...args: any[]
@@ -26,14 +25,22 @@ type Options = {
 	debug?: boolean;
 };
 
+type RegisteredSystem<W extends World> = {
+	system: ISystem<W>;
+	subscriptions: ReturnType<typeof createSystemScope>;
+};
+
 export class World {
+	#lifecycle = new Lifecycle(
+		() => this.initializeSystems(),
+		() => this.destroySystems(),
+	);
 	#entities: Set<Entity>;
 	#storage: Map<typeof Component, Map<Entity, Component>>;
 	#disabledComponents: Map<Entity, Map<typeof Component, Component>>;
-	#systems: ISystem[];
+	#systems: RegisteredSystem<this>[];
 	#nextEntity: Entity;
 	#debugEntity: Entity;
-	#eventBus: EventBus<GameEvents>;
 	#layerIndex: Map<RenderLayers, Set<Entity>>;
 	#entityLayer: Map<Entity, RenderLayers>;
 	#debug: boolean;
@@ -46,18 +53,21 @@ export class World {
 		this.#disabledComponents = new Map();
 		this.#systems = [];
 		this.#debugEntity = -1;
-		this.#eventBus = new EventBus();
 		this.#debug = options.debug ?? false;
 		this.#layerIndex = new Map();
 		this.#entityLayer = new Map();
 		this.#gameTime = 0;
 	}
 
-	get eventBus(): EventBus<GameEvents> {
-		return this.#eventBus;
+	initialize(): Promise<void> {
+		return this.#lifecycle.initialize();
 	}
-
-	async initialize(): Promise<void> {
+	private assertAlive(): void {
+		if (this.#lifecycle.closed) throw new Error("World is destroyed");
+	}
+	private async initializeSystems(): Promise<void> {
+		this.registerComponent(RenderLayerComponent);
+		this.registerComponent(TransformComponent);
 		this.registerComponent(DebugRenderComponent);
 		this.#entities.add(this.#debugEntity);
 		this.updateComponent(this.#debugEntity, new DebugRenderComponent());
@@ -70,12 +80,17 @@ export class World {
 			new TransformComponent(Vec2.create()),
 		);
 
-		for await (const system of this.#systems) {
-			await system.initialize?.(this);
+		for (const { system, subscriptions } of this.#systems) {
+			this.assertAlive();
+			await system.initialize?.(this, subscriptions.scope);
 		}
+		this.assertAlive();
 	}
 
 	addEntity(components?: Component[]): Entity {
+		this.assertAlive();
+		for (const component of components ?? [])
+			this.getComponentMap(component.constructor as typeof Component);
 		const entity = this.#nextEntity;
 		this.#entities.add(entity);
 		this.#nextEntity++;
@@ -98,13 +113,15 @@ export class World {
 
 		this.#disabledComponents.delete(entity);
 
+		this.removeLayer(entity);
+	}
+
+	private removeLayer(entity: Entity): void {
 		const layer = this.#entityLayer.get(entity);
-
 		if (layer === undefined) return;
-
-		const set = this.#layerIndex.get(layer)!;
-
-		set.delete(entity);
+		const entities = this.#layerIndex.get(layer)!;
+		entities.delete(entity);
+		if (entities.size === 0) this.#layerIndex.delete(layer);
 		this.#entityLayer.delete(entity);
 	}
 
@@ -121,9 +138,12 @@ export class World {
 	}
 
 	updateComponent(entity: Entity, component: Component): void {
+		if (!this.#entities.has(entity))
+			throw new Error(`Entity ${entity} does not exist`);
 		const componentClass = component.constructor as typeof Component;
 		const map = this.getComponentMap(componentClass);
 
+		this.removeDisabled(entity, componentClass);
 		map.set(entity, component);
 
 		if (component instanceof RenderLayerComponent) {
@@ -131,8 +151,7 @@ export class World {
 			const oldLayer = this.#entityLayer.get(entity);
 
 			if (oldLayer !== undefined && oldLayer !== newLayer) {
-				const oldSet = this.#layerIndex.get(oldLayer);
-				oldSet?.delete(entity);
+				this.removeLayer(entity);
 			}
 
 			let set = this.#layerIndex.get(newLayer);
@@ -170,6 +189,7 @@ export class World {
 		}
 
 		disabledMap.set(componentClass, component);
+		if (componentClass === RenderLayerComponent) this.removeLayer(entity);
 	}
 
 	enableComponent(entity: Entity, componentClass: ComponentClass): void {
@@ -188,11 +208,18 @@ export class World {
 			this.#disabledComponents.delete(entity);
 		}
 
-		const map = this.getComponentMap(componentClass);
-		map.set(entity, component);
+		this.updateComponent(entity, component);
+	}
+
+	private removeDisabled(entity: Entity, componentClass: ComponentClass): void {
+		const disabled = this.#disabledComponents.get(entity);
+		disabled?.delete(componentClass);
+		if (disabled?.size === 0) this.#disabledComponents.delete(entity);
 	}
 
 	removeComponent(entity: Entity, componentClass: ComponentClass): void {
+		this.removeDisabled(entity, componentClass);
+		if (componentClass === RenderLayerComponent) this.removeLayer(entity);
 		const map = this.getComponentMap(componentClass);
 
 		map.delete(entity);
@@ -210,11 +237,15 @@ export class World {
 	}
 
 	registerComponent(component: ComponentClass): void {
-		this.#storage.set(component, new Map());
+		this.assertAlive();
+		if (!this.#storage.has(component)) this.#storage.set(component, new Map());
 	}
 
-	registerSystem(system: ISystem): void {
-		this.#systems.push(system);
+	registerSystem(system: ISystem<this>): void {
+		this.assertAlive();
+		if (this.#lifecycle.started)
+			throw new Error("Register systems before initialization");
+		this.#systems.push({ system, subscriptions: createSystemScope() });
 	}
 
 	*query<T extends ComponentClass[]>(
@@ -326,13 +357,6 @@ export class World {
 		return iterator.done ? undefined : iterator.value;
 	}
 
-	getPlayer():
-		| QueryItem<[typeof TransformComponent, typeof PlayerComponent]>
-		| undefined {
-		const iterator = this.query(TransformComponent, PlayerComponent).next();
-		return iterator.done ? undefined : iterator.value;
-	}
-
 	*querySingle<T extends ComponentClass>(
 		componentClass: T,
 	): Generator<{ entity: Entity; component: InstanceType<T> }> {
@@ -415,24 +439,42 @@ export class World {
 	}
 
 	fixedUpdate(dt: number): void {
+		if (this.#lifecycle.closed) return;
 		this.#gameTime += dt * 1000;
 
-		for (const system of this.#systems) {
+		for (const { system } of this.#systems) {
+			if (this.#lifecycle.closed) break;
 			system.fixedUpdate?.(this, dt);
 		}
 	}
 
 	update(dt: number): void {
-		for (const system of this.#systems) {
+		if (this.#lifecycle.closed) return;
+		for (const { system } of this.#systems) {
+			if (this.#lifecycle.closed) break;
 			system.update?.(this, dt);
 		}
 	}
 
-	async destroy(): Promise<void> {
-		for (const system of this.#systems) {
-			await system.destroy?.(this);
+	destroy(): Promise<void> {
+		return this.#lifecycle.destroy();
+	}
+	private async destroySystems(): Promise<void> {
+		const errors: unknown[] = [];
+		for (const { system, subscriptions } of [...this.#systems].reverse()) {
+			subscriptions.close();
+			try {
+				await system.destroy?.(this);
+			} catch (error) {
+				errors.push(error);
+			}
 		}
-
-		this.#eventBus.clear();
+		this.#systems = [];
+		this.#entities.clear();
+		for (const map of this.#storage.values()) map.clear();
+		this.#disabledComponents.clear();
+		this.#layerIndex.clear();
+		this.#entityLayer.clear();
+		if (errors.length) throw new AggregateError(errors, "World cleanup failed");
 	}
 }

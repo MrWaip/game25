@@ -1,15 +1,12 @@
-export { createHarness } from "./harness";
-export { FakeInputStrategy } from "./fakeInputStrategy";
-export { captureGameEvents } from "./events";
-export { MockRandom } from "./mockRandom";
-export { createRafHarness } from "./raf";
+export { MockRandom } from "@/testkit/mockRandom";
+export { createRafHarness } from "@/testkit/raf";
 export {
 	createEngineWorldMock,
 	createEngineAssetsManagerMock,
-} from "./engine";
+} from "@/testkit/engine";
 export {
 	createTestRenderer,
 	createMockImageBitmap,
 	createMockCanvas,
 	createMockAssetsManager,
-} from "./renderer";
+} from "@/testkit/renderer";

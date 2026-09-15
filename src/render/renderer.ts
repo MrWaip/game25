@@ -1,8 +1,7 @@
-import type { SpriteName } from "../assets";
-import { AssetsManager } from "../core/assetsManager";
-import { Screen } from "../core/screen";
-import type { AABB } from "../primitives/aabb";
-import { Vec2 } from "../primitives/vec2-gl";
+import { AssetsManager } from "@/core/assetsManager";
+import { Screen } from "@/core/screen";
+import type { AABB } from "@/primitives/aabb";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 export interface IRenderer {
 	clear(): void;
@@ -35,7 +34,7 @@ type RenderText = {
 };
 
 type RenderAnimated = {
-	name: SpriteName;
+	name: string;
 	frame: number;
 	direction: "right" | "left";
 	position: Vec2;
@@ -56,7 +55,7 @@ type RenderPrimitive = {
 
 type RenderSprite = {
 	alpha: number;
-	imageName: SpriteName;
+	imageName: string;
 	position: Vec2;
 	offset: Vec2;
 	size: Vec2;

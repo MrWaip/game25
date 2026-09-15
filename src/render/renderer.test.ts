@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { vi } from "vitest";
-import { createTestRenderer, createMockImageBitmap } from "../testkit/renderer";
-import { Vec2 } from "../primitives/vec2-gl";
+import { describe, it, expect } from "vite-plus/test";
+import { vi } from "vite-plus/test";
+import { createTestRenderer, createMockImageBitmap } from "@/testkit/renderer";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 describe("CanvasRenderer", () => {
 	describe("renderAnimated", () => {

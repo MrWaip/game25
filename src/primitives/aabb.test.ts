@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { AABB } from "./aabb";
-import { Vec2 } from "./vec2-gl";
+import { describe, it, expect } from "vite-plus/test";
+import { AABB } from "@/primitives/aabb";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 describe("AABB", () => {
 	describe("fromCenter", () => {

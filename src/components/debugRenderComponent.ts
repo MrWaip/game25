@@ -1,5 +1,5 @@
-import type { AABB } from "../primitives/aabb";
-import { Component } from "./component";
+import type { AABB } from "@/primitives/aabb";
+import { Component } from "@/components/component";
 
 type AABBRender = {
 	type: "aabb";

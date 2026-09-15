@@ -1,5 +1,5 @@
 import { Rectangle } from "@timohausmann/quadtree-ts";
-import { Vec2 } from "./vec2-gl";
+import { Vec2 } from "@/primitives/vec2-gl";
 
 export class AABB {
 	#min: Vec2;
