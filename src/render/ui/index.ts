@@ -13,4 +13,8 @@ export {
 	createWidgets,
 	type WidgetTheme,
 	type CardOptions,
+	type ButtonOptions,
+	type WidgetRecipes,
 } from "@/render/ui/widgets";
+
+export { CanvasUiPanels, type UiPanel } from "@/render/ui/panels";

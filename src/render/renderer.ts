@@ -1,10 +1,23 @@
-import { AssetsManager } from "@/core/assetsManager";
-import { Screen } from "@/core/screen";
-import type { AABB } from "@/primitives/aabb";
+import type { CanvasElement } from "@/render/canvas";
+import { CanvasSurface, type PaintContext } from "@/render/surface";
+import {
+	worldPoint,
+	positive,
+	type WorldPoint,
+	type ScreenPoint,
+	type Projection,
+} from "@/render/projection";
+import type { AssetsManager } from "@/core/assetsManager";
+import type { Screen } from "@/core/screen";
+import { AABB } from "@/primitives/aabb";
 import { Vec2 } from "@/primitives/vec2-gl";
 
 export interface IRenderer {
-	clear(): void;
+	frame(camera: Camera, paint: (frame: FrameRenderer) => undefined): void;
+}
+
+export interface FrameRenderer {
+	readonly bounds: AABB;
 
 	renderAnimated(sprite: RenderAnimated): void;
 
@@ -13,8 +26,6 @@ export interface IRenderer {
 	debugAABB(aabb: AABB, color: string, name: string | undefined): void;
 
 	renderSprite(sprite: RenderSprite): void;
-
-	setCamera(camera: Camera): void;
 
 	renderText(text: RenderText): void;
 }
@@ -26,9 +37,7 @@ type Camera = {
 
 type RenderText = {
 	text: string[][];
-	position: Vec2;
-	offset: Vec2;
-	static: boolean;
+	position: WorldPoint | ScreenPoint;
 	fontSize: number;
 	color: string;
 };
@@ -37,8 +46,7 @@ type RenderAnimated = {
 	name: string;
 	frame: number;
 	direction: "right" | "left";
-	position: Vec2;
-	offset: Vec2;
+	position: WorldPoint;
 	size: Vec2;
 	spriteSize: Vec2;
 	cols?: number;
@@ -47,70 +55,74 @@ type RenderAnimated = {
 type RenderPrimitive = {
 	color: string;
 	form: "rect";
-	position: Vec2;
+	position: WorldPoint;
 	size: Vec2;
-	offset: Vec2;
 	filled: boolean;
 };
+
+export type SpriteSizing = "stretch" | "repeat" | "repeat-x";
 
 type RenderSprite = {
 	alpha: number;
 	imageName: string;
-	position: Vec2;
-	offset: Vec2;
+	position: WorldPoint | ScreenPoint;
 	size: Vec2;
 	spriteSize: Vec2;
 	spriteOffset: Vec2;
-	static: boolean;
-	fitToSize?: boolean;
-	tileX?: boolean;
+	sizing: SpriteSizing;
 };
 
 export class CanvasRenderer implements IRenderer {
-	#canvas: HTMLCanvasElement;
-	#ctx: CanvasRenderingContext2D;
-	#assetsManager: AssetsManager;
-	#camera: Camera | undefined;
-	#screen: Screen;
-
+	#surface: CanvasSurface;
 	constructor(
-		canvas: HTMLCanvasElement,
-		assetsManager: AssetsManager,
-		screen: Screen,
+		canvas: CanvasElement,
+		private readonly assetsManager: Pick<AssetsManager, "getImage">,
+		private readonly screen: Screen,
 	) {
-		this.#canvas = canvas;
-		this.#ctx = canvas.getContext("2d")!;
-		this.#assetsManager = assetsManager;
-		this.#camera = undefined;
-		this.#screen = screen;
+		this.#surface = new CanvasSurface(canvas);
+		canvas.style.width = `${screen.size[0]}px`;
+		canvas.style.height = `${screen.size[1]}px`;
 	}
-
-	setCamera(camera: Camera): void {
-		const visibleWorldSize = this.#screen.getCameraWorldSize(camera.zoom);
-
-		const fitX = this.#screen.bufferSize[0] / visibleWorldSize[0];
-		const fitY = this.#screen.bufferSize[1] / visibleWorldSize[1];
-		const fitScale = Math.min(fitX, fitY);
-
-		this.#camera = {
-			position: camera.position,
-			zoom: fitScale * camera.zoom,
-		};
+	frame(camera: Camera, paint: (frame: FrameRenderer) => undefined): void {
+		const projection = this.screen.projection(camera.position, camera.zoom);
+		this.#surface.resize(projection.viewport, this.screen.pixelRatio);
+		this.#surface.frame((ctx) => {
+			const frame = new CanvasFrame(ctx, this.assetsManager, projection);
+			try {
+				paint(frame);
+			} finally {
+				frame.close();
+			}
+		});
 	}
+}
 
-	get camera(): Camera {
-		if (!this.#camera) throw new Error("Camera is not set");
-
-		return this.#camera;
+class CanvasFrame implements FrameRenderer {
+	readonly bounds: AABB;
+	#open = true;
+	private get ctx(): PaintContext {
+		if (!this.#open) throw new Error("Frame is closed");
+		return this.context;
+	}
+	close(): void {
+		this.#open = false;
+	}
+	constructor(
+		private readonly context: PaintContext,
+		private readonly assetsManager: Pick<AssetsManager, "getImage">,
+		private readonly projection: Projection,
+	) {
+		const { x, y, width, height } = projection.bounds;
+		this.bounds = AABB.fromCenter(
+			Vec2.fromValues(x + width / 2, y + height / 2),
+			Vec2.fromValues(width, height),
+		);
 	}
 
 	renderAnimated(sprite: RenderAnimated): void {
-		const worldCenter = Vec2.create();
-		Vec2.add(worldCenter, sprite.position, sprite.offset);
-
-		const screenCenter = this.worldToCanvas(worldCenter);
+		const screenCenter = this.worldToCanvas(sprite.position);
 		const scaledSize = Vec2.create();
-		Vec2.scale(scaledSize, sprite.size, this.camera.zoom);
+		Vec2.scale(scaledSize, sprite.size, this.projection.scaleX);
 		const halfSize = Vec2.create();
 		Vec2.scale(halfSize, scaledSize, 0.5);
 		const topLeft = Vec2.create();
@@ -130,14 +142,14 @@ export class CanvasRenderer implements IRenderer {
 			frameOffsetY = 0;
 		}
 
-		const image = this.#assetsManager.getImage(sprite.name);
+		const image = this.assetsManager.getImage(sprite.name);
 
-		this.#ctx.save();
+		this.ctx.save();
 
 		if (sprite.direction === "left") {
-			this.#ctx.scale(-1, 1);
+			this.ctx.scale(-1, 1);
 
-			this.#ctx.drawImage(
+			this.ctx.drawImage(
 				image,
 				frameOffsetX,
 				frameOffsetY,
@@ -149,7 +161,7 @@ export class CanvasRenderer implements IRenderer {
 				scaledSize[1],
 			);
 		} else {
-			this.#ctx.drawImage(
+			this.ctx.drawImage(
 				image,
 				frameOffsetX,
 				frameOffsetY,
@@ -162,36 +174,34 @@ export class CanvasRenderer implements IRenderer {
 			);
 		}
 
-		this.#ctx.restore();
+		this.ctx.restore();
 	}
 
 	renderSprite(sprite: RenderSprite) {
-		const image = this.#assetsManager.getImage(sprite.imageName);
+		positive(sprite.spriteSize[0], "sprite source width");
+		positive(sprite.spriteSize[1], "sprite source height");
+		positive(sprite.size[0], "sprite width");
+		positive(sprite.size[1], "sprite height");
+		const image = this.assetsManager.getImage(sprite.imageName);
 
-		this.#ctx.save();
+		this.ctx.save();
 
-		this.#ctx.globalAlpha = sprite.alpha;
+		this.ctx.globalAlpha = sprite.alpha;
 
 		let screenCenter: Vec2;
 		let scaledSize: Vec2;
 		let scaledTile: Vec2;
 
-		if (sprite.static) {
-			const pixelRatio = this.#screen.pixelRatio;
-			screenCenter = Vec2.create();
-			Vec2.add(screenCenter, sprite.position, sprite.offset);
-			Vec2.scale(screenCenter, screenCenter, pixelRatio);
-			scaledSize = Vec2.create();
-			Vec2.scale(scaledSize, sprite.size, pixelRatio);
+		if (sprite.position.space === "screen") {
+			screenCenter = Vec2.fromValues(sprite.position.x, sprite.position.y);
+			scaledSize = sprite.size;
 			scaledTile = sprite.spriteSize;
 		} else {
-			const worldCenter = Vec2.create();
-			Vec2.add(worldCenter, sprite.position, sprite.offset);
-			screenCenter = this.worldToCanvas(worldCenter);
+			screenCenter = this.worldToCanvas(sprite.position);
 			scaledSize = Vec2.create();
-			Vec2.scale(scaledSize, sprite.size, this.camera.zoom);
+			Vec2.scale(scaledSize, sprite.size, this.projection.scaleX);
 			scaledTile = Vec2.create();
-			Vec2.scale(scaledTile, sprite.spriteSize, this.camera.zoom);
+			Vec2.scale(scaledTile, sprite.spriteSize, this.projection.scaleX);
 		}
 
 		const halfSize = Vec2.create();
@@ -199,8 +209,8 @@ export class CanvasRenderer implements IRenderer {
 		const topLeft = Vec2.create();
 		Vec2.sub(topLeft, screenCenter, halfSize);
 
-		if (sprite.fitToSize && !sprite.tileX) {
-			this.#ctx.drawImage(
+		if (sprite.sizing === "stretch") {
+			this.ctx.drawImage(
 				image,
 				sprite.spriteOffset[0],
 				sprite.spriteOffset[1],
@@ -212,14 +222,15 @@ export class CanvasRenderer implements IRenderer {
 				scaledSize[1],
 			);
 
-			this.#ctx.restore();
+			this.ctx.restore();
 			return;
 		}
 
-		if (sprite.tileX) {
-			const tileWidth = sprite.static
-				? sprite.spriteSize[0] * this.#screen.pixelRatio
-				: scaledTile[0];
+		if (sprite.sizing === "repeat-x") {
+			const tileWidth =
+				sprite.position.space === "screen"
+					? sprite.spriteSize[0]
+					: scaledTile[0];
 			const cols = Math.ceil(scaledSize[0] / tileWidth);
 			const stretchedHeight = scaledSize[1];
 
@@ -229,11 +240,12 @@ export class CanvasRenderer implements IRenderer {
 				if (remainingW <= 0) break;
 				const drawW = Math.min(tileWidth, remainingW);
 
-				const sourceW = sprite.static
-					? drawW / this.#screen.pixelRatio
-					: drawW / this.camera.zoom;
+				const sourceW =
+					sprite.position.space === "screen"
+						? drawW
+						: drawW / this.projection.scaleX;
 
-				this.#ctx.drawImage(
+				this.ctx.drawImage(
 					image,
 					sprite.spriteOffset[0],
 					sprite.spriteOffset[1],
@@ -246,7 +258,7 @@ export class CanvasRenderer implements IRenderer {
 				);
 			}
 
-			this.#ctx.restore();
+			this.ctx.restore();
 			return;
 		}
 
@@ -265,14 +277,16 @@ export class CanvasRenderer implements IRenderer {
 				if (remainingW <= 0) break;
 				const drawW = Math.min(scaledTile[0], remainingW);
 
-				const sourceW = sprite.static
-					? drawW / this.#screen.pixelRatio
-					: drawW / this.camera.zoom;
-				const sourceH = sprite.static
-					? drawH / this.#screen.pixelRatio
-					: drawH / this.camera.zoom;
+				const sourceW =
+					sprite.position.space === "screen"
+						? drawW
+						: drawW / this.projection.scaleX;
+				const sourceH =
+					sprite.position.space === "screen"
+						? drawH
+						: drawH / this.projection.scaleX;
 
-				this.#ctx.drawImage(
+				this.ctx.drawImage(
 					image,
 					sprite.spriteOffset[0],
 					sprite.spriteOffset[1],
@@ -286,22 +300,18 @@ export class CanvasRenderer implements IRenderer {
 			}
 		}
 
-		this.#ctx.restore();
+		this.ctx.restore();
 	}
 
 	renderText(text: RenderText): void {
-		const ctx = this.#ctx;
+		const ctx = this.ctx;
 		ctx.save();
 
 		const fontSize = text.fontSize;
 		const color = text.color ?? "white";
-		const pixelRatio = this.#screen.pixelRatio;
-		const effectivePixelRatio = text.static ? Math.min(pixelRatio, 2) : 1;
-		const scaledFontSize = text.static
-			? fontSize * effectivePixelRatio
-			: fontSize;
+		const scaledFontSize = fontSize;
 		const lineHeight = scaledFontSize * 1.2;
-		const columnSpacing = text.static ? 12 * effectivePixelRatio : 12;
+		const columnSpacing = 12;
 		const centerCols = true;
 
 		ctx.font = `bold ${scaledFontSize}px Inter, system-ui, sans-serif`;
@@ -309,17 +319,10 @@ export class CanvasRenderer implements IRenderer {
 		ctx.textAlign = "left";
 		ctx.textBaseline = "top";
 
-		let screenPos = Vec2.create();
-		Vec2.add(screenPos, text.position, text.offset);
-
-		if (text.static) {
-			const bufferHeight = this.#screen.bufferSize[1];
-			Vec2.scale(screenPos, screenPos, pixelRatio);
-			Vec2.set(screenPos, screenPos[0], bufferHeight - screenPos[1]);
-		} else {
-			const worldPos = screenPos;
-			screenPos = this.worldToCanvas(worldPos);
-		}
+		const screenPos =
+			text.position.space === "screen"
+				? Vec2.fromValues(text.position.x, text.position.y)
+				: this.worldToCanvas(text.position);
 
 		const rows = text.text;
 
@@ -362,67 +365,47 @@ export class CanvasRenderer implements IRenderer {
 	}
 
 	debugAABB(aabb: AABB, color: string, name: string | undefined): void {
-		this.#ctx.save();
-		this.#ctx.strokeStyle = color;
-		this.#ctx.lineWidth = 2;
+		this.ctx.save();
+		this.ctx.strokeStyle = color;
+		this.ctx.lineWidth = 2;
 
-		const topLeft = this.worldToCanvas(
-			Vec2.fromValues(aabb.min[0], aabb.max[1]),
-		);
+		const topLeft = this.worldToCanvas(worldPoint(aabb.min[0], aabb.max[1]));
 		const bottomRight = this.worldToCanvas(
-			Vec2.fromValues(aabb.max[0], aabb.min[1]),
+			worldPoint(aabb.max[0], aabb.min[1]),
 		);
 
 		const width = bottomRight[0] - topLeft[0];
 		const height = bottomRight[1] - topLeft[1];
 
-		this.#ctx.strokeRect(topLeft[0], topLeft[1], width, height);
+		this.ctx.strokeRect(topLeft[0], topLeft[1], width, height);
 
 		if (name) {
 			this.renderText({
 				color,
 				fontSize: 10,
-				offset: Vec2.create(),
-				position: Vec2.fromValues(aabb.min[0], aabb.max[1]),
-				static: false,
+				position: worldPoint(aabb.min[0], aabb.max[1]),
 				text: [[name]],
 			});
 		}
 
-		this.#ctx.restore();
+		this.ctx.restore();
 	}
 
-	private worldToCamera(world: Vec2): Vec2 {
-		const rel = Vec2.create();
-		Vec2.sub(rel, world, this.camera.position);
-		const result = Vec2.create();
-		Vec2.scale(result, rel, this.camera.zoom);
-		return result;
-	}
-
-	private cameraToCanvas(cameraPos: Vec2): Vec2 {
-		const x = this.#canvas.width / 2 + cameraPos[0];
-		const y = this.#canvas.height / 2 - cameraPos[1];
-		return Vec2.fromValues(x, y);
-	}
-
-	private worldToCanvas(world: Vec2): Vec2 {
-		return this.cameraToCanvas(this.worldToCamera(world));
+	private worldToCanvas(world: WorldPoint): Vec2 {
+		const point = this.projection.toScreen(world);
+		return Vec2.fromValues(point.x, point.y);
 	}
 
 	renderPrimitive(render: RenderPrimitive): void {
-		this.#ctx.save();
+		this.ctx.save();
 
-		this.#ctx.fillStyle = render.color;
-		this.#ctx.strokeStyle = render.color;
-		this.#ctx.lineWidth = 2;
+		this.ctx.fillStyle = render.color;
+		this.ctx.strokeStyle = render.color;
+		this.ctx.lineWidth = 2;
 
-		const worldCenter = Vec2.create();
-		Vec2.add(worldCenter, render.position, render.offset);
-
-		const screenCenter = this.worldToCanvas(worldCenter);
+		const screenCenter = this.worldToCanvas(render.position);
 		const scaledSize = Vec2.create();
-		Vec2.scale(scaledSize, render.size, this.camera.zoom);
+		Vec2.scale(scaledSize, render.size, this.projection.scaleX);
 
 		const halfSize = Vec2.create();
 		Vec2.scale(halfSize, scaledSize, 0.5);
@@ -432,14 +415,14 @@ export class CanvasRenderer implements IRenderer {
 		switch (render.form) {
 			case "rect":
 				if (render.filled) {
-					this.#ctx.fillRect(
+					this.ctx.fillRect(
 						topLeft[0],
 						topLeft[1],
 						scaledSize[0],
 						scaledSize[1],
 					);
 				} else {
-					this.#ctx.strokeRect(
+					this.ctx.strokeRect(
 						topLeft[0],
 						topLeft[1],
 						scaledSize[0],
@@ -449,10 +432,6 @@ export class CanvasRenderer implements IRenderer {
 				break;
 		}
 
-		this.#ctx.restore();
-	}
-
-	clear(): void {
-		this.#ctx.reset();
+		this.ctx.restore();
 	}
 }

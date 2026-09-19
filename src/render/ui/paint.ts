@@ -1,8 +1,9 @@
+import type { PaintContext } from "@/render/surface";
 import type { LayoutNode, UiAppearance } from "@/render/ui/types";
 import { font, lineHeight } from "@/render/ui/text";
 
 export function paint(
-	ctx: CanvasRenderingContext2D,
+	ctx: PaintContext,
 	item: LayoutNode,
 	appearance: UiAppearance,
 	focused: string | null,
@@ -61,6 +62,19 @@ export function paint(
 					? appearance.focus
 					: style.border!;
 			ctx.lineWidth = node.kind === "button" && focused === node.id ? 2 : 1;
+			ctx.stroke();
+		}
+		if (style.insetBorder) {
+			ctx.beginPath();
+			ctx.roundRect(
+				rect.x + 4,
+				rect.y + 4,
+				Math.max(0, rect.width - 8),
+				Math.max(0, rect.height - 8),
+				Math.max(0, (style.radius ?? 0) - 3),
+			);
+			ctx.strokeStyle = style.insetBorder;
+			ctx.lineWidth = 1;
 			ctx.stroke();
 		}
 		for (const child of item.children)

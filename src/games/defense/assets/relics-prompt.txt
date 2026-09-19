@@ -1,0 +1,26 @@
+Generated with the built-in image_gen tool. medieval-atlas.png was used as a style-only reference. The three outputs preserve transparent alpha and are sampled as exact 3x3 grids at runtime.
+
+Shared prompt:
+Use case: stylized-concept
+Asset type: production 2D game sprite atlas for relic reward icons in a cozy medieval mobile tower-defense
+Input images: medieval-atlas.png is a STYLE REFERENCE ONLY. Match its polished hand-painted cartoon rendering, bold clean dark outlines, warm soft shading, material detail, top-down slightly front-facing camera, cell margins, and object scale. Do not copy its objects or composition.
+Primary request: Create a brand-new square atlas with EXACTLY 3 columns and 3 rows of equal square cells. Nine isolated medieval relic objects, one centered per cell.
+Scene/backdrop: genuinely transparent background across the entire atlas; no panels, frames, floor, labels, text, numbers, dividers, or grid lines.
+Composition/framing: generous transparent margin in every cell; no object may cross a cell boundary; all objects visually balanced and readable when reduced to 58 px and 24 px.
+Style/medium: polished 2D hand-painted cartoon game sprites matching the reference, strong silhouettes, realistic medieval materials, playful proportions.
+Constraints: exactly nine objects in the specified order; each cell contains only its named relic; true transparent alpha outside objects; no text; no watermark; no border; no UI cards; no duplicated object; no cropped edges.
+
+relics-common.png rows, left to right:
+Row 1: squat wooden tar barrel leaking one glossy black drop; compact blacksmith bellows with a tiny orange ember at the nozzle; heavy round iron weight with a short ring handle.
+Row 2: three clearly layered orange flames rising from one ember; medieval gold coin stamped with a subtle percent-like division motif; bulging tied green coin purse with a few gold coins.
+Row 3: small whetstone grinding wheel on a wooden stand with one spark; compact bird trap with a feather caught in its wooden jaws; rolled travel bedroll tied to a short walking staff.
+
+relics-rare.png rows, left to right:
+Row 1: two translucent concentric bronze sound rings around a small arrowhead; cheerful pink ceramic piggy bank with a gold coin entering the slot; heavy square iron branding stamp with its face glowing orange, resting beside a chipped gray stone.
+Row 2: compact hourglass tipped forward with bright sand rushing rapidly, beside a tiny mason hammer; crossed builder hammer and battle pennant over a small wooden shield; opened broken metal shield with a precise surgical scalpel laid across the crack.
+Row 3: split round metal shield bursting outward from a central axe strike; small frontier watchtower on a pointed wooden palisade base with a red pennant; paired miniature crossbows linked side by side by a bronze gear.
+
+relics-key.png rows, left to right:
+Row 1: three iron chain links carrying orange flame from one link to the next; rolled blue architectural blueprint tied with cord, showing only simple gold tower linework; small armored skeletal guardian skull wearing a dented iron helmet, with a round shield behind it.
+Row 2: compact arched wooden bridge with one black oil drop and one gray stone projectile soaring above it; dry bundle of straw tinder bound with twine, burning with an unnaturally persistent narrow flame; shallow blackened brazier holding a mound of pale ash with three intense blue-orange embers.
+Row 3: iron hunter's target medallion pierced through its center by a single arrow; battered stone castle gate barricade with one last burning torch; fragile clear glass vial filled with bright orange liquid and a hairline crack, small flame trapped inside.

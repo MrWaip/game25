@@ -138,7 +138,8 @@ export async function mountArcade(
 				element.disabled = true;
 			try {
 				await load(id, fresh);
-			} catch {
+			} catch (error) {
+				console.error("Game startup failed", error);
 				stage.textContent =
 					"Не удалось запустить игру. Попробуй выбрать её ещё раз.";
 			} finally {

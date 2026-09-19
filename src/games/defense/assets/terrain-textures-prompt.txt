@@ -1,0 +1,18 @@
+Create a production-ready 4 columns by 3 rows sprite atlas of twelve seamless,
+tileable top-down terrain textures for the existing stylized medieval tower-defense
+game. Match the painterly hand-painted style and top-down camera of biomes.png,
+medieval-atlas.png, and landmarks.png. Every cell is an exact equal square with no
+gutters, borders, labels, or transparency.
+
+Cell order, left to right:
+Row 1: forest ground, forest road, autumn ground, autumn road.
+Row 2: deadwood ground, deadwood road, drylands ground, drylands road.
+Row 3: desert ground, desert road, volcanic ground, volcanic road.
+
+Ground cells use restrained grass, soil, sand, ash, and tiny biome-specific texture
+marks. Road cells are related in colour but smoother and more compacted, with faint
+ruts, fine grit, and sparse small pebbles. Keep contrast low and detail fine so units,
+towers, projectiles, and UI stay readable. Flat orthographic texture only: no focal
+objects, large rocks or plants, buildings, bridges, characters, footprints, text,
+logos, strong shadows, vignettes, lighting hotspots, seams, or repeated central
+motifs. Every cell must tile seamlessly on all four edges.

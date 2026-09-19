@@ -12,6 +12,7 @@ import path from "node:path";
 import { RuleTester } from "vite-plus/lint/plugins-dev";
 import { describe, expect, it } from "vite-plus/test";
 import { importBoundaries } from "../../tooling/importBoundaries";
+import { canvasOwnership } from "../../tooling/canvasOwnership";
 
 const root = process.cwd();
 
@@ -75,13 +76,54 @@ const sample = (file: string, code: string) => ({
 	filename: path.join(root, "src", file),
 	code,
 });
+tester.run("canvas-ownership", canvasOwnership, {
+	valid: [
+		sample("render/surface.ts", 'canvas.getContext("2d");'),
+		sample("games/defense/render/units.ts", "ctx.scale(2, 2);"),
+		sample("render/example.test.ts", 'canvas.getContext("2d");'),
+	],
+	invalid: [
+		'canvas.getContext("2d");',
+		'canvas["getContext"]("2d");',
+		"const read = canvas.getContext;",
+		"ctx.setTransform(1, 0, 0, 1, 0, 0);",
+		"ctx.resetTransform();",
+		"let context: CanvasRenderingContext2D;",
+		"let canvas: HTMLCanvasElement;",
+		'document.createElement("canvas");',
+		'element("canvas", "");',
+	].map((code) => ({
+		...sample("games/defense/render/example.ts", code),
+		errors: [{ messageId: "owner" }],
+	})),
+});
 tester.run("import-boundaries", importBoundaries, {
 	valid: [
 		sample("games/defense/example.ts", 'import "@/core/world";'),
+		sample(
+			"games/defense/render/units.ts",
+			'import type { PaintContext } from "@/render/surface";',
+		),
 		sample("launcher/example.ts", 'void import("@/games/jumper");'),
 		sample("games/defense/theme.ts", 'import "@/ui/colors";'),
 	],
 	invalid: [
+		...[
+			'import { buildModifiers } from "../effects/buildModifiers";',
+			'import type { DefenseSnapshot } from "../snapshot";',
+			'void import("@/games/defense/definitions/towers");',
+			'export * from "@/games/defense/boardScene";',
+		].map((code) => ({
+			...sample("games/defense/render/example.ts", code),
+			errors: [{ messageId: "presentation" }],
+		})),
+		{
+			...sample(
+				"games/defense/runScreen.ts",
+				'import { drawTerrain } from "./render/terrain";',
+			),
+			errors: [{ messageId: "painter" }],
+		},
 		...[
 			'import type { Enemy } from "@/games/defense/components/enemyComponent";',
 			'export * from "../games/defense/session";',
@@ -93,6 +135,17 @@ tester.run("import-boundaries", importBoundaries, {
 			...sample("core/example.ts", code),
 			errors: [{ messageId: "ownership" }],
 		})),
+		{
+			...sample(
+				"games/defense/boardInput.ts",
+				'import { CanvasSurface } from "@/render/surface";',
+			),
+			errors: [{ messageId: "canvas" }],
+		},
+		{
+			...sample("systems/example.ts", 'export * from "../render/surface";'),
+			errors: [{ messageId: "canvas" }],
+		},
 		{
 			...sample("games/defense/example.ts", 'import "../jumper/world";'),
 			errors: [{ messageId: "ownership" }],

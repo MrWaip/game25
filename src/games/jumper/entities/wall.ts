@@ -24,6 +24,7 @@ export function createWall({
 
 	const render = new SpriteRenderComponent<SpriteName>({
 		name: "terrain",
+		sizing: "repeat",
 		size,
 		spriteOffset: Vec2.create(),
 		spriteSize: Vec2.fromValues(48, 48),

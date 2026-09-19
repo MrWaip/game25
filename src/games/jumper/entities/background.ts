@@ -18,8 +18,7 @@ export function createBackground(size: Vec2): Component[] {
 		spriteOffset: Vec2.create(),
 		spriteSize: Vec2.fromValues(800, 1024),
 		static: true,
-		fitToSize: true,
-		tileX: true,
+		sizing: "repeat-x",
 	});
 
 	const layer = new RenderLayerComponent(RenderLayers.Background);

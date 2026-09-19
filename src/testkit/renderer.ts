@@ -1,6 +1,7 @@
+import { createMockCanvas } from "@/testkit/canvas";
 import { vi } from "vite-plus/test";
 import { CanvasRenderer } from "@/render/renderer";
-import { AssetsManager } from "@/core/assetsManager";
+import type { AssetsManager } from "@/core/assetsManager";
 import { Vec2 } from "@/primitives/vec2-gl";
 import { Screen } from "@/core/screen";
 
@@ -12,72 +13,27 @@ export function createMockImageBitmap(): ImageBitmap {
 	} as unknown as ImageBitmap;
 }
 
-export function createMockCanvas(): {
-	canvas: HTMLCanvasElement;
-	ctx: CanvasRenderingContext2D;
-} {
-	const canvas = document.createElement("canvas");
-	canvas.width = 800;
-	canvas.height = 600;
-
-	const drawImage = vi.fn();
-	const save = vi.fn();
-	const restore = vi.fn();
-	const scale = vi.fn();
-	const reset = vi.fn();
-	const strokeRect = vi.fn();
-	const fillRect = vi.fn();
-	const fillText = vi.fn();
-
-	const ctx = {
-		drawImage,
-		save,
-		restore,
-		scale,
-		reset,
-		strokeRect,
-		fillRect,
-		fillText,
-		globalAlpha: 1,
-		fillStyle: "",
-		strokeStyle: "",
-		lineWidth: 0,
-		font: "",
-		textAlign: "left" as CanvasTextAlign,
-		textBaseline: "top" as CanvasTextBaseline,
-	} as unknown as CanvasRenderingContext2D;
-
-	vi.spyOn(canvas, "getContext").mockReturnValue(ctx);
-
-	return { canvas, ctx };
-}
-
-type AssetsManagerWithPrivate = AssetsManager & {
-	"#images": Map<string, ImageBitmap>;
-};
-
 export function createMockAssetsManager(): {
-	assetsManager: AssetsManager;
+	assetsManager: Pick<AssetsManager, "getImage">;
 	setImage: (name: string, image: ImageBitmap) => void;
 } {
-	const assetsManager = new AssetsManager() as AssetsManagerWithPrivate;
-
-	function setImage(name: string, image: ImageBitmap) {
-		if (!assetsManager["#images"]) {
-			assetsManager["#images"] = new Map<string, ImageBitmap>();
-		}
-		assetsManager["#images"].set(name, image);
-
-		const verify = assetsManager["#images"].get(name);
-		if (!verify) {
-			throw new Error(`Failed to set image ${name}`);
-		}
-	}
-
-	return { assetsManager, setImage };
+	const images = new Map<string, ImageBitmap>();
+	return {
+		assetsManager: {
+			getImage(name) {
+				const image = images.get(name);
+				if (!image) throw new Error(`Missing test image: ${name}`);
+				return image;
+			},
+		},
+		setImage: (name, image) => {
+			images.set(name, image);
+		},
+	};
 }
 
 export function createTestRenderer(options?: {
+	pixelRatio?: number;
 	viewportSize?: Vec2;
 	camera?: {
 		position?: Vec2;
@@ -86,27 +42,32 @@ export function createTestRenderer(options?: {
 	};
 }): {
 	renderer: CanvasRenderer;
+	camera: { position: Vec2; zoom: number };
 	canvas: HTMLCanvasElement;
 	ctx: CanvasRenderingContext2D;
-	assetsManager: AssetsManager;
+	assetsManager: Pick<AssetsManager, "getImage">;
+	image: ImageBitmap;
 	setImage: (name: string, image: ImageBitmap) => void;
 } {
 	const viewportSize = options?.viewportSize ?? Vec2.fromValues(800, 600);
 	const orthographicSize =
 		options?.camera?.orthographicSize ?? viewportSize[1] / 2;
-	const screen = new Screen(viewportSize, 1, orthographicSize);
+	const screen = new Screen(
+		viewportSize,
+		options?.pixelRatio ?? 1,
+		orthographicSize,
+	);
 	const { canvas, ctx } = createMockCanvas();
 	const { assetsManager, setImage } = createMockAssetsManager();
+	const image = createMockImageBitmap();
+	setImage("test", image);
 
 	const renderer = new CanvasRenderer(canvas, assetsManager, screen);
 
 	const cameraPosition = options?.camera?.position ?? Vec2.create();
 	const cameraZoom = options?.camera?.zoom ?? 1;
 
-	renderer.setCamera({
-		position: cameraPosition,
-		zoom: cameraZoom,
-	});
+	const camera = { position: cameraPosition, zoom: cameraZoom };
 
-	return { renderer, canvas, ctx, assetsManager, setImage };
+	return { renderer, camera, canvas, ctx, assetsManager, setImage, image };
 }

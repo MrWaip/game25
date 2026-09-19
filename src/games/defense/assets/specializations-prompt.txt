@@ -1,0 +1,19 @@
+Generated with the built-in image_gen tool. Existing medieval-atlas.png, stone-tower.png, siege-atlas.png, and relics-common.png were used only as style, camera, scale, and material references. Both outputs preserve transparent alpha and are sampled at runtime.
+
+specialization-towers.png
+Use case: stylized-concept
+Asset type: production 2D tower specialization sprite atlas for a cozy medieval mobile tower-defense
+Primary request: a landscape atlas with exactly 4 columns and 2 rows of equal cells, eight isolated specialized towers, matching the existing hand-painted cartoon style, bold dark outlines, warm shading, top-down slightly front-facing camera, stone foundations, and readable silhouettes.
+Row 1: reinforced heavy-bodkin crossbow; fire-arrow crossbow with brazier and red pennant; bronze ricochet crossbow with deflector plates; thick-oil catapult with oversized tar barrel.
+Row 2: acid catapult with green glass vat; soaking-agent catapult with violet liquid; reinforced heavy-stone catapult with enormous boulder; stunning-stone catapult with golden lightning cracks and coil details.
+Constraints: one complete centered tower per cell; identical camera and scale; true transparent alpha; no text, labels, grid, border, characters, watermark, or cropped edges.
+
+specialization-effects.png
+Use case: stylized-concept
+Asset type: production 2D projectile and impact-effect sprite atlas for a cozy medieval mobile tower-defense
+Primary request: a square atlas with exactly 4 columns and 4 rows. The first two rows are eight isolated right-facing projectiles; the last two rows are their matching centered impact effects.
+Row 1 projectiles: steel broadhead arrow; flaming arrow; polished bronze ricochet arrow; dense black tar glob.
+Row 2 projectiles: toxic-green acid glob; violet soaking glob; iron-banded heavy boulder; golden-cracked stunning stone.
+Row 3 impacts: metal hit spark; orange ignition burst; directional bronze ricochet spark; black tar splash.
+Row 4 impacts: corrosive green splash; violet soaking ripple; dusty stone shockwave; golden electrical stun pulse with three stars.
+Constraints: one centered sprite per cell; projectiles readable at 8-24 px and impacts at 20-55 px; true transparent alpha; no text, labels, grid, border, watermark, extra objects, or cropped edges.

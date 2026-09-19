@@ -1,106 +1,169 @@
-import { expect, it } from "vite-plus/test";
-import { createDefenseWorld } from "@/games/defense/setup";
-import { createSessionRuntime } from "@/games/defense/sessionRuntime";
-import { createDefenseSession } from "@/games/defense/session";
-import { Run } from "@/games/defense/components/runComponent";
-import { waveAt, waveDifficulty } from "@/games/defense/waves";
-import { speedAuraMultiplier } from "@/games/defense/enemyRules";
-import { Enemy } from "@/games/defense/components/enemyComponent";
-import { createEnemy } from "@/games/defense/entities/enemy";
-import { classicMap, slotsFor, isBuildable } from "@/games/defense/board";
-import { createTower } from "@/games/defense/entities/tower";
+import { expect, test } from "vite-plus/test";
+import { balance } from "./config";
+import { createDefenseSession } from "./session";
+import {
+	assaultProgress,
+	totalWaves,
+	waveDefinition,
+	waveSpawn,
+} from "./definitions/campaign";
 
-it("spawns a supportive squad on one path, rotates entrances and resumes mid-squad", async () => {
-	const assembly = await createDefenseWorld("squads");
-	const run = assembly.world.getFirstComponent(Run)!;
-	Object.assign(run, {
-		phase: "wave",
-		wave: 8,
-		remaining: waveAt(8).enemies.length,
+test("every wave and chapter increases total enemy health and each assault increases pressure", () => {
+	let previous = 0;
+	for (let number = 1; number <= totalWaves; number++) {
+		const wave = waveDefinition(number);
+		let health = 0;
+		for (let i = 0; i < wave.count; i++) {
+			const spawn = waveSpawn(wave, i)!;
+			health +=
+				spawn.kind === "shieldSquad"
+					? spawn.shieldHealth + spawn.health * 5
+					: spawn.health;
+		}
+		expect(health, `wave ${number}`).toBeGreaterThan(previous);
+		previous = health;
+		for (let i = 1; i < wave.assaults.length; i++) {
+			const before = wave.assaults[i - 1],
+				after = wave.assaults[i];
+			expect(after.count).toBeGreaterThan(before.count);
+			expect(after.health).toBeGreaterThan(before.health);
+			expect(after.interval).toBeLessThan(before.interval);
+		}
+	}
+});
+
+test("clearing an assault does not end the wave; its saved gap resumes once", async () => {
+	const initial = await createDefenseSession({ seed: "assault-boundary" });
+	initial.startWave();
+	const state = initial.snapshot();
+	await initial.destroy();
+	const wave = waveDefinition(1);
+	state.remaining = wave.count - wave.assaults[0].count;
+	state.spawnIn = 4;
+	const session = await createDefenseSession({
+		saved: JSON.stringify({ version: "gdd-5", run: state }),
 	});
-	const game = createSessionRuntime(assembly);
-	let restored: Awaited<ReturnType<typeof createDefenseSession>> | undefined;
 	try {
-		game.step(10);
-		restored = await createDefenseSession({ saved: game.save() });
-		game.step(16);
-		restored.step(16);
-		expect(restored.save()).toBe(game.save());
-		const first = game.snapshot().enemies;
-		expect(first).toHaveLength(4);
-		expect(new Set(first.map((e) => e.path)).size).toBe(1);
-		expect(first.map((e) => e.kind)).toEqual([
-			"tank",
-			"herald",
-			"wisp",
-			"shield",
-		]);
-		const enemies = [...assembly.world.query(Enemy)].map(
-			(e) => e.components[0],
-		);
-		expect(
-			enemies.filter((e) => speedAuraMultiplier(e, enemies) > 1),
-		).toHaveLength(3);
-		game.step(140);
-		const second = game.snapshot().enemies;
-		expect(second.length).toBeGreaterThanOrEqual(5);
-		expect(run.map.paths[second[4].path][0].x).not.toBe(
-			run.map.paths[first[0].path][0].x,
-		);
-	} finally {
-		await game.destroy();
-		await restored?.destroy();
-	}
-});
-
-it("preserves opening enemy stats and scales beyond wave eighteen without unbounded crowds or speed", () => {
-	for (let wave = 1; wave <= 5; wave++) {
-		const [enemy] = createEnemy("normal", wave, classicMap);
-		expect(enemy.hp).toBe(Math.round(32 * (1 + (wave - 1) * 0.18)));
-		expect(enemy.speed).toBe(85);
-	}
-	expect(waveDifficulty(18).health).toBeGreaterThan(11);
-	expect(waveDifficulty(28).health).toBeGreaterThan(
-		waveDifficulty(18).health * 2,
-	);
-	for (const wave of [18, 100, 500]) {
-		expect(waveAt(wave).enemies.length).toBeLessThanOrEqual(32);
-		expect(waveDifficulty(wave).speed).toBeLessThanOrEqual(1.3);
-		expect(waveDifficulty(wave).spawnInterval).toBeGreaterThanOrEqual(0.3);
-	}
-});
-
-it("a fixed developed defense faces more pressure in later stages", async () => {
-	const results = [];
-	for (const wave of [8, 18, 28]) {
-		const assembly = await createDefenseWorld("balance-squads");
-		const run = assembly.world.getFirstComponent(Run)!;
-		Object.assign(run, {
-			phase: "wave",
-			wave,
-			remaining: waveAt(wave).enemies.length,
-		});
-		Object.assign(run.bonuses, { power: 3, haste: 2, chain: 2 });
-		const cells = slotsFor(run.map)
-			.map((_, slot) => slot)
-			.filter((slot) => isBuildable(run.map, slot));
-		for (let i = 0; i < 12; i++) {
-			const [tower] = createTower(
-				cells[Math.floor((i * cells.length) / 12)],
-				i % 2 ? "arcane" : "rapid",
-			);
-			tower.level = 3;
-			assembly.world.addEntity([tower]);
-		}
-		const game = createSessionRuntime(assembly);
+		session.step(120);
+		expect(session.snapshot().phase).toBe("wave");
+		expect(session.snapshot().offers).toEqual([]);
+		expect(session.snapshot().enemies).toEqual([]);
+		const resumed = await createDefenseSession({ saved: session.save() });
 		try {
-			game.step(7200);
-			results.push(game.snapshot().waveLeaks);
+			resumed.pause();
+			resumed.step(240);
+			expect(resumed.snapshot()).toEqual(session.snapshot());
+			resumed.resume();
+			session.step(122);
+			resumed.step(122);
+			expect(resumed.snapshot()).toEqual(session.snapshot());
+			expect(session.snapshot().enemies).toHaveLength(1);
+			expect(assaultProgress(1, session.snapshot().remaining).index).toBe(2);
 		} finally {
-			await game.destroy();
+			await resumed.destroy();
 		}
+	} finally {
+		await session.destroy();
 	}
-	expect(results[0]).toBe(0);
-	expect(results[1]).toBeGreaterThan(0);
-	expect(results[2]).toBeGreaterThan(results[0]);
+});
+
+test("three basic tower types require further investment by the third wave", async () => {
+	const session = await createDefenseSession({ seed: "three-basic-towers" });
+	try {
+		for (let number = 1; number <= 3; number++) {
+			if (!session.startWave()) break;
+			for (
+				let second = 0;
+				second < 180 && session.getProgress().phase === "wave";
+				second++
+			) {
+				session.build(0, "arrow");
+				session.build(1, "oil");
+				session.build(6, "stone");
+				session.step(60);
+			}
+			const state = session.snapshot();
+			if (state.phase !== "reward") break;
+			if (state.offers.length) session.choose(state.offers[0]);
+			else session.continue();
+		}
+		expect(session.snapshot().health).toBeLessThan(balance.health);
+		expect(session.snapshot().towers).toHaveLength(3);
+	} finally {
+		await session.destroy();
+	}
+});
+
+test("upgrading only the same three towers cannot hold both introductory chapters", async () => {
+	const session = await createDefenseSession({ seed: "three-upgraded-towers" });
+	try {
+		for (let number = 1; number <= 6; number++) {
+			if (!session.startWave()) break;
+			for (
+				let second = 0;
+				second < 360 && session.getProgress().phase === "wave";
+				second++
+			) {
+				session.build(0, "arrow");
+				session.build(1, "oil");
+				session.build(6, "stone");
+				for (const slot of [0, 6, 1]) session.improve(slot);
+				session.specialize(0, "fire");
+				session.step(60);
+			}
+			const state = session.snapshot();
+			if (state.phase !== "reward") break;
+			if (state.offers.length) session.choose(state.offers[0]);
+			else session.continue();
+		}
+		// The gate survives on a sliver: three towers no longer hold the pressure.
+		expect(session.snapshot().health).toBeLessThan(balance.health / 10);
+	} finally {
+		await session.destroy();
+	}
+});
+
+test("legacy in-progress saves retain enemies and scale only the unspawned tail", async () => {
+	const initial = await createDefenseSession({ seed: "old-wave" });
+	initial.startWave();
+	initial.step();
+	const state = initial.snapshot();
+	await initial.destroy();
+	state.remaining = 3;
+	state.spawnIn = 0.75;
+	const session = await createDefenseSession({
+		saved: JSON.stringify({ version: "gdd-4", run: state }),
+	});
+	try {
+		expect(session.snapshot().remaining).toBe(9);
+		expect(session.snapshot().spawnIn).toBe(0.75);
+		expect(session.snapshot().enemies).toEqual(state.enemies);
+		const resumed = await createDefenseSession({ saved: session.save() });
+		try {
+			expect(resumed.snapshot()).toEqual(session.snapshot());
+		} finally {
+			await resumed.destroy();
+		}
+	} finally {
+		await session.destroy();
+	}
+});
+
+test("late shields hold several goblin blows and late flocks are fast, tough and many", async () => {
+	const { waveDefinition, waveSpawn } = await import("./definitions/campaign");
+	const { enemies } = await import("./definitions/enemies");
+	const late = waveDefinition(18);
+	const spawns = Array.from({ length: late.count }, (_, i) =>
+		waveSpawn(late, i)!,
+	);
+	const squad = spawns.find((spawn) => spawn.kind === "shieldSquad")!;
+	expect(squad.shieldHealth).toBeGreaterThanOrEqual(squad.health * 3);
+	const flyers = spawns.filter((spawn) => spawn.kind === "flyer");
+	expect(flyers.length).toBeGreaterThanOrEqual(5);
+	const goblin = spawns.find(
+		(spawn) => spawn.kind === "goblin" && spawn.assault === flyers[0].assault,
+	)!;
+	expect(flyers[0].health).toBeGreaterThan(goblin.health);
+	expect(enemies.flyer.speed).toBeGreaterThan(enemies.goblin.speed);
+	expect(enemies.flyer.breachDamage).toBe(2);
 });

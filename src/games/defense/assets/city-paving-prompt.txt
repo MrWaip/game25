@@ -1,0 +1,19 @@
+Use case: stylized-concept
+Asset type: seamless tileable game texture for the visible interior courtyard
+behind a medieval city gate
+Primary request: one square, perfectly seamless top-down paving texture that
+reads as an inhabited medieval city courtyard while remaining a quiet gameplay
+background
+Input images: ozon-bank-castle.png and ozon-wall.png are style and material
+references; terrain-textures.png is the texture-density and camera reference
+Subject: small irregular pale limestone cobbles and worn rectangular paving
+slabs, restrained warm-gray mortar, occasional subtle repaired stone, and very
+sparse tiny blue-gray ceramic accents
+Style/medium: polished hand-painted fantasy tower-defense art, strict
+orthographic top-down surface texture
+Lighting/mood: soft diffuse daylight, low contrast, no directional shadow
+Constraints: seamless on all four edges; no focal point, objects, buildings,
+walls, gates, plants, road markings, characters, text, logos, symbols, branding,
+transparency, vignette, or lighting hotspot
+Avoid: large stones, high-contrast cracks, repeated central motifs, visible tile
+seams, perspective, or isometric angle

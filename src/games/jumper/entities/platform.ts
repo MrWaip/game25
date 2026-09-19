@@ -69,7 +69,7 @@ export function createPlatform({
 		size: clonedSize,
 		spriteSize,
 		offset: offsetWithY,
-		fitToSize: true,
+		sizing: "stretch",
 	});
 
 	const renderLayer = new RenderLayerComponent(RenderLayers.World);

@@ -1,0 +1,13 @@
+Generated with the built-in image_gen tool. medieval-atlas.png supplied the game style and camera reference; the current official Ozon Bank app icon supplied the wordmark and primary blue reference.
+
+Shared art direction: production sprites for a cozy medieval tower-defense game; polished hand-painted mobile-game art, bold clean dark outlines, warm shading, chunky readable forms; Ozon blue (#005BFF), white, warm pale stone, brown wood and restrained gold; genuine transparent alpha; isolated centered objects; no scene or ground plane.
+
+ozon-bank-castle.png: friendly symmetrical pale-stone bank fortress with blue glazed roofs, reinforced double wooden gate, exact stacked white "ozon / банк" sign, blue "ozon" flags, and the exact phrase "БАНК ДЛЯ ЛЮБИТЕЛЕЙ ВЫГОДЫ" above the arch.
+
+ozon-road-sign.png: chunky wooden roadside arrow sign with a blue enamel face, exact white word "ВЫГОДА", and a white right arrow.
+
+ozon-banner.png: tall freestanding blue cloth banner on a wooden pole with gold finials and the exact white lowercase word "ozon".
+
+ozon-wall.png: short modular pale-stone castle wall with three crenellations, blue glazed capstones, ivy, and an inset blue plaque carrying the exact stacked white "ozon / банк" wordmark.
+
+ozon-road-mark.png: flat top-down, heavily weathered and intentionally faint blue "ozon / банк" road-paint decal with a small four-point sparkle; transparent outside the remaining paint particles.

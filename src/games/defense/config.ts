@@ -1,15 +1,13 @@
-export type { TowerKind } from "@/games/defense/definitions/towers";
-export { towerKinds } from "@/games/defense/definitions/towers";
-export type Phase = "draft" | "prepare" | "wave" | "reward" | "lost";
-export { upgrades, starters } from "@/games/defense/definitions/upgrades";
-export type { Upgrade, Starter } from "@/games/defense/definitions/upgrades";
-export const milestone = { interval: 5, coins: 100, healing: 2 };
-export const isMilestone = (wave: number) =>
-	wave > 0 && wave % milestone.interval === 0;
-export const economy = {
-	upgradeCost: 35,
-	maxLevel: 3,
-	saleFraction: 0.5,
-	killReward: 2,
-	waveReward: 35,
-} as const;
+export type { Phase, TowerKind, RelicId } from "./model";
+export const balance = {
+	startCoins: 180,
+	health: 100,
+	relicSlots: 5,
+	offerCount: 3,
+	constructionSeconds: 4,
+	rushSeconds: 10,
+	builders: 2,
+	interestCap: 200,
+	greedBreachLoss: 0.2,
+	oilLayers: 3,
+};

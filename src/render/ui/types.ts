@@ -1,3 +1,4 @@
+import type { PaintContext } from "@/render/surface";
 export type Rect = { x: number; y: number; width: number; height: number };
 export type TextStyle = {
 	color: string;
@@ -9,6 +10,12 @@ export type TextStyle = {
 	maxLines?: number;
 };
 export type BoxStyle = {
+	/** Relative share of remaining row width; fixed width is the minimum when growing. */
+	grow?: number;
+	align?: "start" | "center" | "end";
+	justify?: "start" | "center" | "end" | "space-between";
+	/** Wrap rows at child widths. Unsized children take a full line. */
+	wrap?: boolean;
 	width?: number;
 	height?: number;
 	minHeight?: number;
@@ -18,6 +25,8 @@ export type BoxStyle = {
 	background?: string;
 	border?: string;
 	radius?: number;
+	offsetY?: number;
+	insetBorder?: string;
 };
 type Box = { style?: BoxStyle; children: UiNode[] };
 export type UiNode =
@@ -25,7 +34,7 @@ export type UiNode =
 	| {
 			kind: "drawing";
 			height: number;
-			draw(ctx: CanvasRenderingContext2D, rect: Rect): void;
+			draw(ctx: PaintContext, rect: Rect): void;
 	  }
 	| ({ kind: "panel" } & Box)
 	| ({

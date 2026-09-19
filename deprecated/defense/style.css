@@ -1,0 +1,334 @@
+body,
+html {
+	overflow: hidden;
+}
+
+#main {
+	display: contents;
+}
+
+canvas {
+	touch-action: none;
+	width: 100%;
+	height: 100%;
+}
+
+#game-container {
+	aspect-ratio: 16 / 9;
+}
+
+.touch-hints {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 40%;
+	display: flex;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.3s ease;
+}
+
+.touch-hints--visible {
+	opacity: 1;
+}
+
+.touch-hint {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-end;
+	padding-bottom: 12px;
+	gap: 4px;
+	position: relative;
+	opacity: 0.4;
+	font-family: system-ui, sans-serif;
+	color: var(--color-hintText);
+	text-shadow: 0 0 4px var(--color-hintShadow);
+	transition:
+		opacity 0.12s ease,
+		transform 0.08s ease;
+}
+
+.touch-hint--center {
+	opacity: 0.6;
+}
+
+.touch-hint--active {
+	opacity: 1;
+	transform: translateY(-2px);
+}
+
+.touch-hint__icon {
+	font-size: 24px;
+}
+
+.touch-hint__label {
+	font-size: 12px;
+}
+
+.touch-hint--left::before,
+.touch-hint--center::before,
+.touch-hint--right::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(
+		circle at 50% 80%,
+		var(--color-hintGlow),
+		transparent 60%
+	);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease;
+}
+
+.touch-hint--active::before {
+	opacity: 1;
+}
+
+@media (hover: none) and (pointer: coarse) {
+	#game-container {
+		height: 100vh;
+		width: 100vw;
+	}
+}
+
+.arcade {
+	height: 100dvh;
+	display: flex;
+	flex-direction: column;
+	background: var(--color-background);
+	color: var(--color-onAction);
+	font-family: system-ui, sans-serif;
+}
+.arcade-toolbar {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+	padding: max(6px, env(safe-area-inset-top)) 6px 6px;
+}
+.arcade button {
+	min-height: 44px;
+	padding: 8px 12px;
+	background: var(--color-surface);
+	color: var(--color-onAction);
+	border: 1px solid var(--color-border);
+	border-radius: 6px;
+	cursor: pointer;
+}
+.arcade button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+.arcade button:focus-visible {
+	outline: 3px solid var(--color-onAction);
+}
+.arcade-stage {
+	flex: 1;
+	min-height: 0;
+	position: relative;
+	overflow: auto;
+}
+.jumper-stage {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+#game-container {
+	width: 100%;
+	height: 100dvh;
+	aspect-ratio: auto;
+}
+
+/* Defense uses Canvas for its HUD, seed tray, actions and rewards. */
+.defense {
+	position: relative;
+	box-sizing: border-box;
+	max-width: 520px;
+	min-height: 100%;
+	margin: 0 auto;
+	padding: 4px 4px max(8px, env(safe-area-inset-bottom));
+	background: var(--color-background);
+	color: var(--color-text);
+	font-family: system-ui, sans-serif;
+}
+.defense button {
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	min-height: 44px;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface);
+	border-radius: 8px;
+	padding: 8px 10px;
+}
+.defense button:disabled {
+	opacity: 0.42;
+	cursor: default;
+}
+.defense button:focus-visible {
+	outline: 2px solid var(--color-focus);
+	outline-offset: 2px;
+}
+.defense-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+.defense-header > .defense-eyebrow {
+	display: none;
+}
+.defense-status {
+	flex: 1;
+	min-width: 0;
+}
+.defense-seed {
+	font-size: 10px;
+	color: var(--color-muted);
+}
+.defense-seed[open] {
+	flex-basis: 100%;
+}
+.defense-seed summary {
+	cursor: pointer;
+	padding: 6px 0;
+}
+.defense-seed form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.defense-seed label {
+	flex: 1;
+	min-width: 160px;
+}
+.defense-seed input {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	padding: 8px;
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	background: var(--color-surface);
+	color: var(--color-text);
+	font: inherit;
+	font-size: 16px;
+}
+.defense-play-area {
+	position: relative;
+}
+.defense-status,
+.defense-bonuses,
+.defense-tray,
+.defense-controls,
+.defense-strategy,
+.defense-reward-screen {
+	position: relative;
+	padding: 0;
+	border: 0;
+}
+.defense-bonuses,
+.defense-tray {
+	margin-bottom: 6px;
+}
+.defense-board {
+	touch-action: none;
+	position: relative;
+	width: 100%;
+	margin: 0 auto;
+	border-radius: 12px;
+	overflow: hidden;
+}
+.defense-board canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.defense .defense-cell {
+	position: absolute;
+	transform: translate(-50%, -50%);
+	width: calc(100% / var(--columns, 7));
+	height: calc(100% / var(--rows, 10));
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+.defense-controls {
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	bottom: 8px;
+	z-index: 4;
+	max-width: 320px;
+	margin: 0 auto;
+}
+.defense-reward-screen {
+	touch-action: pan-y;
+}
+.defense-header {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: center;
+	gap: 6px 10px;
+}
+.defense-header .defense-status,
+.defense-header .defense-eyebrow {
+	grid-column: 1;
+}
+.defense-header .defense-seed {
+	grid-column: 1 / -1;
+}
+.defense-icon-control {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: 1px solid var(--color-border);
+	border-radius: 50%;
+	background: var(--color-surface);
+	font-size: 16px;
+}
+.defense-strategy-tabs {
+	display: flex;
+	gap: 4px;
+	margin: 8px 0;
+	border-bottom: 1px solid var(--color-border);
+}
+.defense-strategy-tabs button {
+	padding: 8px 10px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: transparent;
+	color: var(--color-muted);
+	font: inherit;
+}
+.defense-strategy-tabs button[aria-pressed="true"] {
+	border-bottom-color: var(--color-focus);
+	color: var(--color-text);
+}
+.defense [hidden] {
+	display: none;
+}
+.defense-play-area:has(.defense-reward-screen:not([hidden]))
+	> :not(.defense-reward-screen) {
+	display: none;
+}
+.arcade-toolbar {
+	gap: 4px;
+	padding: max(4px, env(safe-area-inset-top)) 8px 4px;
+}
+.arcade-toolbar button {
+	flex: 1;
+	padding: 8px 6px;
+	font-size: 12px;
+	border-radius: 9px;
+}

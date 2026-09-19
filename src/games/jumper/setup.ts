@@ -17,7 +17,7 @@ export function populateJumper(world: JumperWorld, screen: Screen): void {
 	const worldWidth = worldSize[0];
 
 	world.addEntity(createBackground(screen.size));
-	world.addEntity(createCounter(screen.size));
+	world.addEntity(createCounter());
 	world.addEntity(createFPS(screen.size));
 
 	const startPlayerPos = Vec2.fromValues(

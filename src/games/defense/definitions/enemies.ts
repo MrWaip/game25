@@ -1,100 +1,58 @@
-import type { DamageType } from "@/games/defense/definitions/towers";
+import type { Point } from "@/primitives/spatial";
+import type { EnemyKind, SpriteId } from "../model";
 export type EnemyDefinition = {
+	id: EnemyKind;
 	title: string;
-	description: string;
-	hp: number;
 	speed: number;
-	shield: number;
-	glyph: string;
-	radius: number;
+	spacing: number;
 	breachDamage: number;
-	resistance: Record<DamageType, number>;
-	speedAura?: { radius: number; multiplier: number };
-	shieldRefresh?: { interval: number; charges: number };
+	/** Oil, and everything built on it, needs a reachable unarmoured body. */
+	oilable: boolean;
+	/** Height above the road; airborne enemies ignore ground splash. */
+	hover: number;
+	sprite: SpriteId;
+	spriteSize: number;
+	spriteAnchor: Point;
 };
-export const enemyDefinitions: Record<
-	"normal" | "fast" | "shield" | "tank" | "wisp" | "herald" | "boss",
-	EnemyDefinition
-> = {
-	normal: {
-		title: "Бродяга",
-		description: "Без защиты.",
-		hp: 32,
-		speed: 85,
-		shield: 0,
-		glyph: "•",
-		radius: 9,
-		breachDamage: 1,
-		resistance: { physical: 0, magic: 0 },
-	},
-	fast: {
-		title: "Бегун",
-		description: "Быстро проходит оборону. Удерживай снегом или морозом.",
-		hp: 26,
-		speed: 130,
-		shield: 0,
-		glyph: "»",
-		radius: 9,
-		breachDamage: 1,
-		resistance: { physical: 0, magic: 0 },
-	},
-	shield: {
-		title: "Щитовик",
-		description: "Три заряда щита. Каждый поглощает одно попадание.",
-		hp: 45,
-		speed: 75,
-		shield: 3,
-		glyph: "⬡",
-		radius: 9,
-		breachDamage: 1,
-		resistance: { physical: 0, magic: 0 },
-	},
-	tank: {
-		title: "Латник",
-		description: "Снижает физический урон на 65%. Уязвим к магии.",
-		hp: 90,
-		speed: 65,
-		shield: 0,
-		glyph: "▣",
-		radius: 12,
-		breachDamage: 1,
-		resistance: { physical: 0.65, magic: 0 },
-	},
-	wisp: {
-		title: "Дух",
-		description: "Снижает магический урон на 70%. Используй физические башни.",
-		hp: 46,
-		speed: 92,
-		shield: 0,
-		glyph: "◇",
-		radius: 9,
-		breachDamage: 1,
-		resistance: { physical: 0, magic: 0.7 },
-	},
-	herald: {
-		title: "Знаменосец",
-		description: "Ускоряет соседей на 30% в радиусе 80. Опасен рядом с роем.",
-		hp: 70,
-		speed: 100,
-		shield: 0,
-		glyph: "⚑",
-		radius: 9,
-		breachDamage: 1,
-		resistance: { physical: 0, magic: 0 },
-		speedAura: { radius: 80, multiplier: 1.3 },
-	},
-	boss: {
-		title: "Хранитель разлома",
-		description:
-			"Восстанавливает четыре заряда щита каждые 6 с. Прорыв отнимает 5 здоровья.",
-		hp: 650,
-		speed: 52,
-		shield: 4,
-		glyph: "♜",
-		radius: 17,
+export const enemies: Record<EnemyKind, EnemyDefinition> = {
+	shieldSquad: {
+		id: "shieldSquad",
+		title: "Отряд под щитами",
+		speed: 48,
+		spacing: 56,
 		breachDamage: 5,
-		resistance: { physical: 0, magic: 0 },
-		shieldRefresh: { interval: 6, charges: 4 },
+		oilable: false,
+		hover: 0,
+		sprite: "shieldSquad",
+		spriteSize: 66,
+		spriteAnchor: { x: 0.5, y: 0.85 },
+	},
+	goblin: {
+		id: "goblin",
+		title: "Гоблин",
+		speed: 48,
+		spacing: 28,
+		breachDamage: 1,
+		oilable: true,
+		hover: 0,
+		sprite: "goblin",
+		spriteSize: 36,
+		spriteAnchor: { x: 0.5, y: 0.85 },
+	},
+	flyer: {
+		id: "flyer",
+		title: "Летун",
+		speed: 64,
+		spacing: 44,
+		breachDamage: 2,
+		oilable: false,
+		hover: 20,
+		sprite: "flyer",
+		spriteSize: 58,
+		spriteAnchor: { x: 0.5, y: 0.7 },
 	},
 };
-export type EnemyKind = keyof typeof enemyDefinitions;
+
+export const squadSize = 5;
+export const shieldHealth = 144;
+export const flyerToughness = 1.4;

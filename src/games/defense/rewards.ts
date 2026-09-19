@@ -1,50 +1,30 @@
-import type { UpgradeDefinition } from "@/games/defense/definitions/upgrades";
 import { Random } from "@/primitives/random";
-import {
-	upgrades,
-	starters,
-	type Starter,
-	type Upgrade,
-} from "@/games/defense/config";
-import type { Run } from "@/games/defense/components/runComponent";
-export function eligibleReward(
-	bonuses: Record<Upgrade, number>,
-	key: Upgrade,
-): boolean {
-	const definition: UpgradeDefinition = upgrades[key];
-	return (
-		bonuses[key] < definition.max &&
-		(definition.requires ?? []).every(
-			(required) => bonuses[required as Upgrade] > 0,
-		)
+import type { Run } from "./components/runComponent";
+import type { RelicId, RelicRarity } from "./model";
+import { relics, rarityWeights } from "./definitions/relics";
+import { balance } from "./config";
+export function rewardOffers(run: Run): RelicId[] {
+	const pool = Object.values(relics).filter(
+		(relic) => relic.offered !== false && !run.relics.includes(relic.id),
 	);
-}
-export function rewardChoices(run: Run): Upgrade[] {
-	const random = new Random(`${run.seed}:${run.wave}`);
-	const pool = (Object.keys(upgrades) as Upgrade[]).filter((key) =>
-		eligibleReward(run.bonuses, key),
-	);
-	const result: Upgrade[] = [];
-	// Offer a world-changing option while either world effect is missing.
-	const world = pool.filter(
-		(key) => (upgrades[key] as UpgradeDefinition).world,
-	);
-	if (world.length) {
-		const choice = world[random.int(0, world.length - 1)];
-		result.push(choice);
-		pool.splice(pool.indexOf(choice), 1);
+	const random = new Random(`${run.seed}:reward:${run.wave}`);
+	const offers: RelicId[] = [];
+	while (offers.length < balance.offerCount) {
+		const left = pool.filter((relic) => !offers.includes(relic.id));
+		if (!left.length) break;
+		const weights = left.map(
+			(relic) =>
+				rarityWeights[relic.rarity](run.wave) / countOf(left, relic.rarity),
+		);
+		const total = weights.reduce((sum, weight) => sum + weight, 0);
+		if (total <= 0) break;
+		let roll = random.range(0, total);
+		const picked =
+			left.find((_, index) => (roll -= weights[index]) <= 0) ?? left[0];
+		offers.push(picked.id);
 	}
-	while (result.length < 3 && pool.length)
-		result.push(pool.splice(random.int(0, pool.length - 1), 1)[0]);
-	return result;
+	return offers;
 }
-
-/** A separate seed stream keeps the opening draft independent of map and waves. */
-export function starterChoices(seed: string): Starter[] {
-	const random = new Random(seed).child("starters:1");
-	const pool = Object.keys(starters) as Starter[];
-	const result: Starter[] = [];
-	while (result.length < 3)
-		result.push(pool.splice(random.int(0, pool.length - 1), 1)[0]);
-	return result;
+function countOf(pool: { rarity: RelicRarity }[], rarity: RelicRarity): number {
+	return pool.filter((relic) => relic.rarity === rarity).length;
 }

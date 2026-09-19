@@ -1,143 +1,154 @@
-import { drawPlacement } from "@/games/defense/render/placement";
-import { drawPortal } from "@/games/defense/render/portal";
-import { defenseTheme } from "@/games/defense/theme";
-const { board, snow, portal } = defenseTheme;
-import { isConstructionSite } from "@/games/defense/constructionRules";
-import { gridFor, slotsFor, isBuildable } from "@/games/defense/board";
-import type { DefenseSnapshot } from "@/games/defense/snapshot";
-import type { BoardPreview } from "@/games/defense/interaction/model";
-import { snowRadius } from "@/games/defense/effects/snow";
-import { buildModifiers } from "@/games/defense/effects/buildModifiers";
+import type { PaintContext } from "@/render/surface";
+import { theme } from "../theme";
+import type { TerrainScene } from "./scene";
 
-export function drawTerrain(
-	ctx: CanvasRenderingContext2D,
-	state: DefenseSnapshot,
-	view: BoardPreview,
-): void {
-	const grid = gridFor(state.map),
-		slots = slotsFor(state.map);
-	ctx.fillStyle = board.background;
-	ctx.fillRect(0, 0, grid.width, grid.height);
-	for (const [index, cell] of slots.entries()) {
-		if (!isBuildable(state.map, index)) continue;
-		if (
-			!isConstructionSite(state.map, index) &&
-			!state.towers.some((tower) => tower.slot === index)
-		) {
-			// Quiet terrain has no tile borders or placement dot.
-			ctx.fillStyle = board.cell;
-			ctx.globalAlpha = 0.25;
-			ctx.fillRect(cell.x - 5, cell.y + 3, 9, 4);
-			ctx.globalAlpha = 1;
-			continue;
-		}
-		ctx.fillStyle = index % 3 === 0 ? board.cellAccent : board.cell;
-		ctx.fillRect(cell.x - 23, cell.y - 23, 46, 46);
-		ctx.fillStyle = board.dot;
-		ctx.fillRect(cell.x - 1, cell.y - 1, 2, 2);
+function paintCityInterior(ctx: PaintContext, paving: HTMLImageElement): void {
+	const pattern = ctx.createPattern(paving, "repeat");
+	ctx.save();
+	ctx.fillStyle = theme.cityPaving;
+	ctx.fillRect(0, 493, 390, 87);
+	if (pattern) {
+		ctx.globalAlpha = 0.52;
+		ctx.fillStyle = pattern;
+		ctx.fillRect(0, 493, 390, 87);
 	}
-	ctx.lineJoin = "round";
-	ctx.lineCap = "round";
-	ctx.strokeStyle = board.road;
-	ctx.lineWidth = 40;
-	ctx.beginPath();
-	const edges = new Set<string>();
-	for (const route of state.map.paths) {
-		for (let i = 1; i < route.length; i++) {
-			const a = route[i - 1],
-				b = route[i];
-			const key = `${a.x},${a.y}:${b.x},${b.y}`;
-			if (edges.has(key)) continue;
-			edges.add(key);
-			ctx.moveTo(a.x, a.y);
-			ctx.lineTo(b.x, b.y);
-		}
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = theme.cityAvenue;
+	ctx.fillRect(158, 493, 74, 87);
+	if (pattern) {
+		ctx.globalAlpha = 0.68;
+		ctx.fillStyle = pattern;
+		ctx.fillRect(158, 493, 74, 87);
 	}
-	ctx.stroke();
-	ctx.strokeStyle = board.roadMark;
-	ctx.lineWidth = 1;
-	ctx.setLineDash([3, 8]);
-	ctx.stroke();
-	ctx.setLineDash([]);
-	const snowCell = view.snow;
-	if (snowCell !== null) {
-		const p = slots[snowCell],
-			radius = snowRadius(buildModifiers(state.bonuses));
-		const gradient = ctx.createRadialGradient(p.x, p.y, 5, p.x, p.y, radius);
-		gradient.addColorStop(0, snow.fill);
-		gradient.addColorStop(1, "transparent");
-		ctx.fillStyle = gradient;
+	ctx.globalAlpha = 1;
+	ctx.strokeStyle = theme.cityCurb;
+	ctx.lineWidth = 1.5;
+	for (const x of [158, 232]) {
 		ctx.beginPath();
-		ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.strokeStyle = snow.edge;
-		ctx.lineWidth = 1.5;
-		ctx.setLineDash([5, 5]);
+		ctx.moveTo(x, 493);
+		ctx.lineTo(x, 580);
 		ctx.stroke();
-		ctx.setLineDash([]);
-		ctx.fillStyle = snow.flake;
-		for (let i = 0; i < 28; i++) {
-			const angle = i * 2.4,
-				r = 12 + ((i * 19) % (radius - 16));
-			const drift = Math.sin(state.elapsed + i) * 2;
-			ctx.fillRect(
-				p.x + Math.cos(angle) * r,
-				p.y + Math.sin(angle) * r + drift,
-				2,
-				2,
+	}
+	ctx.restore();
+}
+
+export function paintTerrain(ctx: PaintContext, scene: TerrainScene): void {
+	const { path } = scene;
+	for (const segment of scene.segments) {
+		const { palette, top, height } = segment;
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(0, top, 390, height);
+		ctx.clip();
+		ctx.fillStyle = palette.ground;
+		ctx.fillRect(0, top, 390, height);
+		const groundTexture = ctx.createPattern(segment.groundTexture, "repeat");
+		if (groundTexture) {
+			ctx.globalAlpha = 0.16;
+			ctx.fillStyle = groundTexture;
+			ctx.fillRect(0, top, 390, height);
+		}
+		ctx.globalAlpha = 1;
+		ctx.lineJoin = "round";
+		ctx.lineCap = "round";
+		for (const stroke of [
+			{ color: palette.edge, width: 43 },
+			{ color: palette.road, width: 37 },
+		]) {
+			ctx.strokeStyle = stroke.color;
+			ctx.lineWidth = stroke.width;
+			ctx.beginPath();
+			path.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+			ctx.stroke();
+		}
+		const roadTexture = ctx.createPattern(segment.roadTexture, "repeat");
+		if (roadTexture) {
+			ctx.globalAlpha = 0.22;
+			ctx.strokeStyle = roadTexture;
+			ctx.lineWidth = 34;
+			ctx.beginPath();
+			path.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+			ctx.stroke();
+			ctx.globalAlpha = 1;
+		}
+		if (segment.previous) {
+			const blend = ctx.createLinearGradient(
+				0,
+				top + height - 24,
+				0,
+				top + height,
+			);
+			blend.addColorStop(0, palette.ground);
+			blend.addColorStop(1, segment.previous.ground);
+			ctx.fillStyle = blend;
+			ctx.fillRect(0, top + height - 24, 390, 24);
+			for (const stroke of [
+				{ color: palette.edge, next: segment.previous.edge, width: 43 },
+				{ color: palette.road, next: segment.previous.road, width: 37 },
+			]) {
+				const roadBlend = ctx.createLinearGradient(
+					0,
+					top + height - 24,
+					0,
+					top + height,
+				);
+				roadBlend.addColorStop(0, stroke.color);
+				roadBlend.addColorStop(1, stroke.next);
+				ctx.save();
+				ctx.beginPath();
+				ctx.rect(0, top + height - 24, 390, 24);
+				ctx.clip();
+				ctx.strokeStyle = roadBlend;
+				ctx.lineWidth = stroke.width;
+				ctx.beginPath();
+				path.forEach((p, i) =>
+					i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y),
+				);
+				ctx.stroke();
+				ctx.restore();
+			}
+		}
+		if (top === 0) paintCityInterior(ctx, scene.cityPaving);
+		const landmarkWidth = segment.landmarkAtlas.naturalWidth / 4;
+		const landmarkHeight = segment.landmarkAtlas.naturalHeight / 3;
+		for (const landmark of segment.landmarks) {
+			const scale = landmark.size / Math.max(landmarkWidth, landmarkHeight);
+			ctx.save();
+			ctx.translate(landmark.x, landmark.y);
+			ctx.rotate(landmark.rotation);
+			ctx.drawImage(
+				segment.landmarkAtlas,
+				(landmark.cell % 4) * landmarkWidth,
+				Math.floor(landmark.cell / 4) * landmarkHeight,
+				landmarkWidth,
+				landmarkHeight,
+				-(landmarkWidth * scale) / 2,
+				-(landmarkHeight * scale) / 2,
+				landmarkWidth * scale,
+				landmarkHeight * scale,
+			);
+			ctx.restore();
+		}
+		const { atlas, rowEdges } = segment;
+		const width = atlas.naturalWidth / 4;
+		for (const p of segment.props) {
+			const row = Math.floor(p.cell / 4);
+			const sourceY = rowEdges[row] * atlas.naturalHeight;
+			const height = (rowEdges[row + 1] - rowEdges[row]) * atlas.naturalHeight;
+			const scale = p.size / Math.max(width, height);
+			ctx.drawImage(
+				atlas,
+				(p.cell % 4) * width,
+				sourceY,
+				width,
+				height,
+				p.x - (width * scale) / 2,
+				p.y - (height * scale) / 2,
+				width * scale,
+				height * scale,
 			);
 		}
+
+		ctx.restore();
 	}
-	if (state.portal) {
-		const a = slots[state.portal.entrance],
-			b = slots[state.portal.exit];
-		ctx.strokeStyle = portal.link;
-		ctx.lineWidth = 2;
-		ctx.setLineDash([4, 6]);
-		ctx.beginPath();
-		ctx.moveTo(a.x, a.y);
-		ctx.bezierCurveTo(grid.width / 2, a.y, grid.width / 2, b.y, b.x, b.y);
-		ctx.stroke();
-		ctx.setLineDash([]);
-		drawPortal(
-			ctx,
-			slots[state.portal.entrance],
-			"entrance",
-			state.portal.cooldown,
-			state.elapsed,
-		);
-		drawPortal(ctx, slots[state.portal.exit], "exit", 0, state.elapsed);
-	}
-	if (view.portalEntrance !== null)
-		drawPortal(ctx, slots[view.portalEntrance], "entrance", 0, state.elapsed);
-	drawPlacement(ctx, state, view.placement);
-	if (view.selected !== null) {
-		const p = slots[view.selected];
-		ctx.strokeStyle = board.selection;
-		ctx.lineWidth = 2;
-		ctx.strokeRect(p.x - 22, p.y - 22, 44, 44);
-	}
-	ctx.font = "bold 9px sans-serif";
-	ctx.textAlign = "left";
-	ctx.fillStyle = board.label;
-	const portals = [
-		state.portal?.entrance,
-		state.portal?.exit,
-		view.portalEntrance,
-	]
-		.filter((cell): cell is number => cell !== null && cell !== undefined)
-		.map((cell) => slots[cell]);
-	const labelX = (x: number, y: number) => {
-		if (!portals.some((p) => Math.abs(p.x - x) < 24 && Math.abs(p.y - y) < 24))
-			return x;
-		ctx.textAlign = x < grid.width / 2 ? "left" : "right";
-		return x + (x < grid.width / 2 ? 26 : -26);
-	};
-	for (const x of new Set(state.map.paths.map((path) => path[0].x))) {
-		ctx.textAlign = x < grid.width / 2 ? "left" : "right";
-		ctx.fillText("↓ ВХОД", labelX(x, 14), 14);
-	}
-	const base = state.map.paths[0].at(-1)!;
-	ctx.textAlign = "center";
-	ctx.fillText("БАЗА ↓", labelX(base.x, grid.height - 11), grid.height - 11);
 }

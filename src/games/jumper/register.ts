@@ -149,7 +149,7 @@ export function registerJumperSystems(
 	world.registerSystem(new FPSSystem());
 
 	if (deps.includeRender && deps.renderer) {
-		world.registerSystem(new RenderSystem(deps.renderer, deps.screen));
+		world.registerSystem(new RenderSystem(deps.renderer));
 	}
 
 	return { physicsWorld };

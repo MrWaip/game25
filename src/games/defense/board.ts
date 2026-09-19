@@ -1,224 +1,117 @@
-export const grid = {
-	columns: 11,
-	rows: 15,
-	cell: 48,
-	width: 528,
-	height: 720,
-};
-export const slots = Array.from(
-	{ length: grid.columns * grid.rows },
-	(_, i) => ({
-		x: ((i % grid.columns) + 0.5) * grid.cell,
-		y: (Math.floor(i / grid.columns) + 0.5) * grid.cell,
-	}),
-);
-type Point = { x: number; y: number };
-export type DefenseMap = { columns: number; rows: number; paths: Point[][] };
-export function gridFor(map: Pick<DefenseMap, "columns" | "rows">) {
-	return {
-		columns: map.columns,
-		rows: map.rows,
-		cell: grid.cell,
-		width: map.columns * grid.cell,
-		height: map.rows * grid.cell,
-	};
+import { offsetFromSegment, type Point } from "@/primitives/spatial";
+import { Polyline } from "@/primitives/polyline";
+export type { Point } from "@/primitives/spatial";
+export const boardWidth = 390;
+export const boardHeight = 580;
+export const extensionHeight = boardHeight * 2;
+const extensionScale = extensionHeight / boardHeight;
+const entranceInset = 76;
+export const road: Point[] = [
+	{ x: 195, y: entranceInset },
+	{ x: 195, y: 85 },
+	{ x: 305, y: 85 },
+	{ x: 305, y: 190 },
+	{ x: 95, y: 190 },
+	{ x: 95, y: 300 },
+	{ x: 285, y: 300 },
+	{ x: 285, y: 410 },
+	{ x: 195, y: 410 },
+	// The road continues under the base sprite and reaches the bank door.
+	{ x: 195, y: 545 },
+];
+export const castleWall: Point = { x: 195, y: 440 };
+type SiteAnchor = { segment: number; fraction: number; offset: number };
+// Offsets are world distances, not scaled with the region height.
+const siteAnchors: SiteAnchor[] = [
+	{ segment: 2, fraction: 55 / 105, offset: 60 },
+	{ segment: 4, fraction: 50 / 110, offset: -50 },
+	{ segment: 6, fraction: 50 / 110, offset: 50 },
+	{ segment: 7, fraction: -15 / 90, offset: -35 },
+	{ segment: 3, fraction: 1, offset: 55 },
+	{ segment: 6, fraction: 0.25, offset: -50 },
+	{ segment: 3, fraction: 130 / 210, offset: 55 },
+	{ segment: 3, fraction: 70 / 210, offset: -50 },
+	{ segment: 5, fraction: 50 / 190, offset: 50 },
+	{ segment: 6, fraction: 90 / 110, offset: -50 },
+];
+// Two pockets around the left and right turns. Offsets stay compact on tall maps.
+// The first six entries retain the regional ownership order of legacy saves.
+const extensionSites: readonly Point[] = [
+	{ x: 150, y: 440 },
+	{ x: 235, y: 765 },
+	{ x: 225, y: 325 },
+	{ x: 135, y: 825 },
+	{ x: 85, y: 325 },
+	{ x: 335, y: 765 },
+	{ x: 40, y: 390 },
+	{ x: 155, y: 325 },
+	{ x: 225, y: 435 },
+	{ x: 335, y: 825 },
+	{ x: 245, y: 875 },
+	{ x: 175, y: 765 },
+];
+export const sitesPerExtension = extensionSites.length;
+function regionRoad(segment: number): Point[] {
+	const scale = segment === 0 ? 1 : extensionScale;
+	return road.map((point) => ({
+		x: point.x,
+		y: -segment * extensionHeight + point.y * scale,
+	}));
 }
-const layouts = new Map<string, Point[]>();
-export function slotsFor(
-	map: Pick<DefenseMap, "columns" | "rows">,
-): readonly Point[] {
-	const key = `${map.columns}:${map.rows}`;
-	let cells = layouts.get(key);
-	if (!cells) {
-		cells = Array.from({ length: map.columns * map.rows }, (_, i) => ({
-			x: ((i % map.columns) + 0.5) * grid.cell,
-			y: (Math.floor(i / map.columns) + 0.5) * grid.cell,
-		}));
-		layouts.set(key, cells);
-	}
-	return cells;
-}
-
-/** Original map, retained for saves predating generated maps and fixed scenarios. */
-export const classicMap: DefenseMap = {
-	columns: 7,
-	rows: 10,
-	paths: [
-		[
-			{ x: 24, y: 0 },
-			{ x: 24, y: 120 },
-			{ x: 312, y: 120 },
-			{ x: 312, y: 264 },
-			{ x: 24, y: 264 },
-			{ x: 24, y: 408 },
-			{ x: 312, y: 408 },
-			{ x: 312, y: 480 },
-		],
-	],
-};
-
-export function routeLength(map: DefenseMap, path = 0): number {
-	const route = map.paths[path];
-	return route
-		.slice(1)
-		.reduce(
-			(length, p, i) => length + Math.hypot(p.x - route[i].x, p.y - route[i].y),
-			0,
-		);
-}
-export function validCell(map: DefenseMap, cell: number): boolean {
-	return Number.isInteger(cell) && cell >= 0 && cell < map.columns * map.rows;
-}
-export function roadProgress(
-	map: DefenseMap,
-	cell: number,
-	path?: number,
-): number | null {
-	if (!validCell(map, cell)) return null;
-	const p = slotsFor(map)[cell];
-	for (const route of path === undefined ? map.paths : [map.paths[path]]) {
-		let progress = 0;
-		for (let i = 1; i < route.length; i++) {
-			const a = route[i - 1],
-				b = route[i];
-			if (
-				p.x >= Math.min(a.x, b.x) &&
-				p.x <= Math.max(a.x, b.x) &&
-				p.y >= Math.min(a.y, b.y) &&
-				p.y <= Math.max(a.y, b.y)
-			)
-				return progress + Math.hypot(p.x - a.x, p.y - a.y);
-			progress += Math.hypot(b.x - a.x, b.y - a.y);
-		}
-	}
-	return null;
-}
-/** Shortest distance from a cell center to any route segment. */
-export function distanceToRoad(map: DefenseMap, cell: number): number {
-	if (!validCell(map, cell)) return Infinity;
-	const p = slotsFor(map)[cell];
-	let distance = Infinity;
-	for (const route of map.paths) {
-		for (let i = 1; i < route.length; i++) {
-			const a = route[i - 1],
-				b = route[i];
-			const x = Math.max(Math.min(a.x, b.x), Math.min(p.x, Math.max(a.x, b.x)));
-			const y = Math.max(Math.min(a.y, b.y), Math.min(p.y, Math.max(a.y, b.y)));
-			distance = Math.min(distance, Math.hypot(p.x - x, p.y - y));
-		}
-	}
-	return distance;
-}
-export const isBuildable = (map: DefenseMap, cell: number) =>
-	validCell(map, cell) && roadProgress(map, cell) === null;
-export function pointOnRoute(map: DefenseMap, progress: number, path = 0) {
-	const route = map.paths[path];
-	let left = Math.max(0, Math.min(progress, routeLength(map, path)));
-	for (let i = 1; i < route.length; i++) {
-		const length = Math.hypot(
-			route[i].x - route[i - 1].x,
-			route[i].y - route[i - 1].y,
-		);
-		if (left <= length)
-			return {
-				x: route[i - 1].x + ((route[i].x - route[i - 1].x) * left) / length,
-				y: route[i - 1].y + ((route[i].y - route[i - 1].y) * left) / length,
-				segment: i,
-			};
-		left -= length;
-	}
-	return { ...route[route.length - 1], segment: route.length - 1 };
-}
-
-/** Validate stored geometry independently of the current generator. */
-export function validMap(value: unknown): value is DefenseMap {
-	if (
-		!value ||
-		typeof value !== "object" ||
-		!("columns" in value) ||
-		!("rows" in value) ||
-		!Number.isSafeInteger(value.columns) ||
-		!Number.isSafeInteger(value.rows) ||
-		Number(value.columns) < 4 ||
-		Number(value.columns) > 24 ||
-		Number(value.rows) < 4 ||
-		Number(value.rows) > 24 ||
-		!("paths" in value) ||
-		!Array.isArray(value.paths) ||
-		value.paths.length < 1 ||
-		value.paths.length > 16
-	)
-		return false;
-	const size = gridFor(value as DefenseMap);
-	const cells = slotsFor(value as DefenseMap);
-	const edges = new Map<string, Set<string>>();
-	let base = "";
-	const key = (p: Point) => `${p.x},${p.y}`;
-	for (const route of value.paths) {
-		if (!Array.isArray(route) || route.length < 2 || route.length > 64)
-			return false;
-		for (const [i, p] of route.entries()) {
-			if (
-				!p ||
-				typeof p !== "object" ||
-				!Number.isFinite(p.x) ||
-				!Number.isFinite(p.y) ||
-				p.x < 24 ||
-				p.x > size.width - 24 ||
-				(p.x - 24) % grid.cell !== 0 ||
-				p.y < 0 ||
-				p.y > size.height
-			)
-				return false;
-			if (
-				i === 0
-					? p.y !== 0
-					: i === route.length - 1
-						? p.y !== size.height
-						: (p.y - 24) % grid.cell !== 0
-			)
-				return false;
-			if (i === 0) continue;
-			const a = route[i - 1];
-			if ((a.x === p.x) === (a.y === p.y)) return false;
-			// Include every crossed cell, so junctions inside long segments count too.
-			const crossed = cells.filter(
-				(s) =>
-					s.x >= Math.min(a.x, p.x) &&
-					s.x <= Math.max(a.x, p.x) &&
-					s.y >= Math.min(a.y, p.y) &&
-					s.y <= Math.max(a.y, p.y),
-			);
-			const points = [a, ...crossed, p].sort(
-				(u, v) =>
-					Math.hypot(u.x - a.x, u.y - a.y) - Math.hypot(v.x - a.x, v.y - a.y),
-			);
-			for (let j = 1; j < points.length; j++) {
-				const from = key(points[j - 1]),
-					to = key(points[j]);
-				if (from === to) continue;
-				if (!edges.has(from)) edges.set(from, new Set());
-				edges.get(from)!.add(to);
-			}
-		}
-		const end = key(route[route.length - 1]);
-		if (base && base !== end) return false;
-		base = end;
-	}
-	const visiting = new Set<string>(),
-		visited = new Set<string>();
-	const acyclic = (node: string): boolean => {
-		if (visiting.has(node)) return false;
-		if (visited.has(node)) return true;
-		visiting.add(node);
-		for (const next of edges.get(node) ?? []) if (!acyclic(next)) return false;
-		visiting.delete(node);
-		visited.add(node);
-		return true;
-	};
-	return (
-		[...edges.keys()].every(acyclic) &&
-		cells.filter((_, cell) => isBuildable(value as DefenseMap, cell)).length >=
-			10
+function placeSites(
+	path: readonly Point[],
+	anchors: readonly SiteAnchor[],
+): Point[] {
+	return anchors.map((anchor) =>
+		offsetFromSegment(
+			path[anchor.segment],
+			path[anchor.segment + 1],
+			anchor.fraction,
+			anchor.offset,
+		),
 	);
+}
+export const sites = placeSites(road, siteAnchors);
+const paths = new Map<number, Polyline>();
+function pathFor(level: number): Polyline {
+	let path = paths.get(level);
+	if (!path) {
+		path = new Polyline(createRoad(level));
+		paths.set(level, path);
+	}
+	return path;
+}
+export function pointOnRoad(distance: number, level = 1): Point {
+	return pathFor(level).pointAt(distance);
+}
+export function roadFor(level: number): readonly Point[] {
+	return pathFor(level).points;
+}
+function createRoad(level: number): Point[] {
+	const extension: Point[] = [];
+	for (let segment = level - 1; segment > 0; segment--) {
+		extension.push(...regionRoad(segment));
+	}
+
+	return [...extension, ...road.slice(0, -1), castleWall];
+}
+const siteLayouts = new Map<number, readonly Point[]>([[1, sites]]);
+export function sitesFor(level: number): readonly Point[] {
+	const cached = siteLayouts.get(level);
+	if (cached) return cached;
+	const result = [...sites];
+	for (let segment = 1; segment < level; segment++) {
+		result.push(
+			...extensionSites.map((site) => ({
+				x: site.x,
+				y: site.y - segment * extensionHeight,
+			})),
+		);
+	}
+
+	siteLayouts.set(level, result);
+	return result;
+}
+export function pathLengthFor(level: number): number {
+	return pathFor(level).length;
 }

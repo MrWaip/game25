@@ -1,17 +1,15 @@
 import { Vec2 } from "@/primitives/vec2-gl";
+import { Projection, positive } from "@/render/projection";
 
 export class Screen {
 	#size: Vec2;
 	#pixelRatio: number;
-	#bufferSize: Vec2;
 	#orthographicSize: number;
 
 	constructor(size: Vec2, pixelRatio: number, orthographicSize: number) {
 		this.#size = Vec2.clone(size);
 		this.#pixelRatio = pixelRatio;
 		this.#orthographicSize = orthographicSize;
-		this.#bufferSize = Vec2.create();
-		this.updateBufferSize();
 	}
 
 	get size(): Vec2 {
@@ -22,30 +20,16 @@ export class Screen {
 		return this.#pixelRatio;
 	}
 
-	get bufferSize(): Vec2 {
-		return this.#bufferSize;
-	}
-
 	get orthographicSize(): number {
 		return this.#orthographicSize;
 	}
 
 	updateSize(cssWidth: number, cssHeight: number): void {
 		Vec2.set(this.#size, cssWidth, cssHeight);
-		this.updateBufferSize();
 	}
 
 	updatePixelRatio(dpr: number): void {
 		this.#pixelRatio = dpr;
-		this.updateBufferSize();
-	}
-
-	private updateBufferSize(): void {
-		Vec2.set(
-			this.#bufferSize,
-			this.#size[0] * this.#pixelRatio,
-			this.#size[1] * this.#pixelRatio,
-		);
 	}
 
 	getAspect(): number {
@@ -91,7 +75,23 @@ export class Screen {
 	}
 
 	getCameraWorldSize(zoom: number = 1): Vec2 {
+		positive(zoom, "camera zoom");
 		return this.getVisibleWorldSize(this.#orthographicSize, zoom);
+	}
+
+	/** Larger zoom shows more world, matching the simulation's camera bounds. */
+	projection(position: Vec2, zoom = 1): Projection {
+		const size = this.getCameraWorldSize(zoom);
+		return new Projection(
+			{ width: this.#size[0], height: this.#size[1] },
+			{
+				x: position[0] - size[0] / 2,
+				y: position[1] - size[1] / 2,
+				width: size[0],
+				height: size[1],
+			},
+			"up",
+		);
 	}
 
 	getCameraBottomY(cameraY: number, zoom: number = 1): number {

@@ -6,10 +6,8 @@ import { TextRenderComponent } from "@/components/textRenderComponent";
 import { Vec2 } from "@/primitives/vec2-gl";
 import { RenderLayers } from "@/render/layers";
 
-export function createCounter(viewportSize: Vec2): Component[] {
-	const transform = new TransformComponent(
-		Vec2.fromValues(30, viewportSize[1] - 20),
-	);
+export function createCounter(): Component[] {
+	const transform = new TransformComponent(Vec2.fromValues(30, 20));
 	const counter = new CounterComponent();
 	const render = new TextRenderComponent({
 		text: [[""]],

@@ -1,3 +1,4 @@
+import type { SpriteSizing } from "@/render/renderer";
 import { Vec2 } from "@/primitives/vec2-gl";
 import { Component } from "@/components/component";
 
@@ -8,8 +9,7 @@ type Options<SpriteKey extends string> = {
 	spriteSize?: Vec2;
 	spriteOffset?: Vec2;
 	static?: boolean;
-	fitToSize?: boolean;
-	tileX?: boolean;
+	sizing: SpriteSizing;
 	alpha?: number;
 };
 
@@ -22,8 +22,7 @@ export class SpriteRenderComponent<
 	#spriteSize: Vec2;
 	#spriteOffset: Vec2;
 	#static: boolean;
-	#fitToSize: boolean;
-	#tileX: boolean;
+	#sizing: SpriteSizing;
 	#enabled: boolean;
 	#alpha: number;
 
@@ -35,8 +34,7 @@ export class SpriteRenderComponent<
 		this.#spriteSize = options.spriteSize ?? options.size;
 		this.#spriteOffset = options.spriteOffset ?? Vec2.create();
 		this.#static = options.static ?? false;
-		this.#fitToSize = options.fitToSize ?? false;
-		this.#tileX = options.tileX ?? false;
+		this.#sizing = options.sizing;
 		this.#enabled = true;
 		this.#alpha = options.alpha ?? 1;
 	}
@@ -53,12 +51,8 @@ export class SpriteRenderComponent<
 		this.#alpha = value;
 	}
 
-	get fitToSize(): boolean {
-		return this.#fitToSize;
-	}
-
-	get tileX(): boolean {
-		return this.#tileX;
+	get sizing(): SpriteSizing {
+		return this.#sizing;
 	}
 
 	get size(): Vec2 {

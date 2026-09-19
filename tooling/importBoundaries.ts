@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import path from "node:path";
 import type { Node, Rule } from "vite-plus/lint/plugins";
+import { canvasOwnership } from "./canvasOwnership.ts";
 
 /** Resolve local imports before checking ownership, including relative imports. */
 export const importBoundaries: Rule = {
@@ -12,6 +13,12 @@ export const importBoundaries: Rule = {
 				"{{from}} cannot import {{to}}. Shared modules do not depend on games or application entry points; games remain independent.",
 			palette:
 				"Assign palette colors only in ui/theme.ts or games/<game>/theme.ts; consumers use semantic roles.",
+			canvas:
+				"Only rendering modules may import CanvasSurface or PaintContext; gameplay and input use their renderer's interface.",
+			presentation:
+				"Board painters consume prepared scene data and theme only. Resolve gameplay rules in boardScene.ts.",
+			painter:
+				"Board painters are private to rendering. Use DefenseRenderer; only it composes the prepared board scene with paintBoard.",
 		},
 	},
 	create(context) {
@@ -37,6 +44,32 @@ export const importBoundaries: Rule = {
 					: undefined;
 			if (!resolved?.startsWith(root)) return;
 			const to = resolved.slice(root.length);
+			if (!from.endsWith(".test.ts")) {
+				const boardPaint = "games/defense/render/";
+				if (
+					from.startsWith(boardPaint) &&
+					!to.startsWith(boardPaint) &&
+					!to.startsWith("render/") &&
+					to.replace(/\.ts$/, "") !== "games/defense/theme"
+				)
+					context.report({ node, messageId: "presentation" });
+				if (
+					to.startsWith(boardPaint) &&
+					to.replace(/\.ts$/, "") !== `${boardPaint}scene` &&
+					!from.startsWith(boardPaint) &&
+					from !== "games/defense/renderer.ts"
+				)
+					context.report({ node, messageId: "painter" });
+			}
+			if (
+				to.replace(/\.ts$/, "") === "render/surface" &&
+				!from.endsWith(".test.ts") &&
+				!/^(render\/|games\/[^/]+\/(render\/|(?:renderer|dragPreview)\.ts$))/.test(
+					from,
+				)
+			) {
+				context.report({ node, messageId: "canvas" });
+			}
 			if (
 				to.replace(/\.ts$/, "") === "ui/colors" &&
 				!/^(ui\/theme|games\/[^/]+\/theme)\.ts$/.test(from)
@@ -73,5 +106,8 @@ export const importBoundaries: Rule = {
 
 export default {
 	meta: { name: "architecture" },
-	rules: { "import-boundaries": importBoundaries },
+	rules: {
+		"import-boundaries": importBoundaries,
+		"canvas-ownership": canvasOwnership,
+	},
 };

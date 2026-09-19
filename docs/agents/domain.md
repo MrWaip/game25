@@ -1,15 +1,9 @@
 # Domain docs
 
-Layout: single-context.
+For new game-design work, read GDD.md. Record agreed rules and terminology there.
+Ask the user one question at a time; proposals remain proposals until agreed.
 
-Before exploring the codebase:
-
-- Read CONTEXT.md at the repository root, if present.
-- Read relevant architectural decisions under docs/adr/.
-
-If these documents are absent, proceed silently.
-Create them through domain-modeling when terminology or decisions
-are resolved.
-
-Use the glossary's terminology in specifications, issues and tests.
-Explicitly flag proposals that contradict an existing ADR.
+Previous design, glossary and architecture are condensed in old.md. Consult it
+when investigating the existing implementation or a historical decision; verify
+implementation details against code. Archived gameplay constraints are not
+requirements for the new design.

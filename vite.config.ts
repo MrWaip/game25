@@ -15,6 +15,7 @@ export default defineConfig({
 		jsPlugins: ["./tooling/importBoundaries.ts"],
 		rules: {
 			"architecture/import-boundaries": "error",
+			"architecture/canvas-ownership": "error",
 			"typescript/no-explicit-any": "error",
 			// Preserve the existing lint policy while enabling the TS7 type checker.
 			"typescript/no-misused-spread": "off",

@@ -1,0 +1,10 @@
+Generated with the built-in image_gen tool. medieval-atlas.png, biomes.png, and specialization-towers.png were used only as style, camera, scale, material, and palette references. The output preserves transparent alpha and is sampled as an exact 4x3 grid at runtime.
+
+Use case: stylized-concept
+Asset type: production 2D biome-landmark sprite atlas for a vertical cozy medieval mobile tower-defense
+Primary request: a landscape atlas with exactly 4 columns and 3 rows of equal cells. Twelve isolated landmarks, one centered in each cell. Each biome has one road crossing and one off-road structure. Road crossings have a horizontal passable deck through the middle and a vertical natural feature beneath it.
+Row 1: forest stream with wooden bridge; forest timber cottage; autumn creek with pale-stone bridge; autumn windmill.
+Row 2: deadwood bog with stone-and-plank causeway; abandoned deadwood chapel; drylands ravine with timber trestle; drylands stone well.
+Row 3: desert fissure with sandstone bridge; desert traveler tent; volcanic lava fissure with basalt bridge; volcanic blacksmith forge.
+Style: polished hand-painted cartoon sprites, bold dark outlines, warm shading, top-down slightly front-facing camera, matching existing assets.
+Constraints: exact order; one complete object per cell; generous transparent margin; compact footprints; true transparent alpha; no text, logos, watermark, borders, characters, or cropped edges.

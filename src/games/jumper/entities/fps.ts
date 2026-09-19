@@ -9,7 +9,7 @@ import { RenderLayers } from "@/render/layers";
 
 export function createFPS(viewportSize: Vec2): Component[] {
 	const transform = new TransformComponent(
-		Vec2.fromValues(viewportSize[0] - 70, viewportSize[1] - 20),
+		Vec2.fromValues(viewportSize[0] - 70, 20),
 	);
 	const fps = new FPSComponent();
 	const render = new TextRenderComponent({

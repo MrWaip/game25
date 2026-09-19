@@ -1,218 +1,252 @@
-import { towerPortrait } from "@/games/defense/towerPortrait";
-import type { ButtonNode } from "@/render/ui/types";
-import type {
-	ConstructionView,
-	ActionView,
-	ConstructionAction,
-} from "@/games/defense/interaction/model";
-import type { TowerKind } from "@/games/defense/config";
-import { defenseTheme } from "@/games/defense/theme";
-import { CanvasUiHost, createWidgets, type UiNode } from "@/render/ui";
-import { theme } from "@/ui/theme";
-
-export const ui = createWidgets(theme.ui);
-export function createUiHost(root: HTMLElement): CanvasUiHost {
-	return new CanvasUiHost(root, {
-		focus: theme.ui.focus,
-		tooltipBackground: theme.ui.raised,
-		tooltipText: theme.ui.text,
+import { ribbon } from "@/render/ui/ribbon";
+import { CanvasUiPanels, createWidgets, type UiNode } from "@/render/ui";
+import type { RelicDefinition, RelicRarity, SpriteId } from "./model";
+import { rarityLooks } from "./relicView";
+import { spriteSource, type DefenseAssets } from "./assets";
+import { theme } from "./theme";
+export const ui = createWidgets({
+	text: theme.text,
+	muted: theme.muted,
+	surface: theme.panel,
+	border: theme.border,
+	action: theme.blue,
+	onAction: theme.text,
+});
+export function createPanels(): CanvasUiPanels {
+	return new CanvasUiPanels({
+		focus: theme.gold,
+		tooltipBackground: theme.panel,
+		tooltipText: theme.text,
 	});
 }
-export function compactButton(
+export function portrait(
+	assets: DefenseAssets,
+	sprite: SpriteId,
+	height = 64,
+): UiNode {
+	return {
+		kind: "drawing",
+		height,
+		draw(ctx, rect) {
+			const source = spriteSource(assets, sprite),
+				size = Math.min(rect.width, rect.height);
+			const scale = size / Math.max(source.width, source.height);
+			const width = source.width * scale,
+				height = source.height * scale;
+			ctx.drawImage(
+				source.image,
+				source.x,
+				source.y,
+				source.width,
+				source.height,
+				rect.x + (rect.width - width) / 2,
+				rect.y + (size - height) / 2,
+				width,
+				height,
+			);
+		},
+	};
+}
+export type ActionTone = "primary" | "secondary";
+export type ActionStyle = { tone?: ActionTone; width?: number; icon?: string };
+export function action(
 	id: string,
 	label: string,
 	onPress: () => void,
 	disabled = false,
-): ButtonNode {
-	return {
-		kind: "button",
+	appearance: ActionStyle = {},
+): UiNode {
+	return ui.button({
 		id,
 		label,
+		icon: appearance.icon,
 		onPress,
 		disabled,
 		style: {
-			padding: 10,
+			padding: 8,
 			minHeight: 44,
-			background: theme.ui.surface,
-			border: theme.ui.border,
-			radius: 10,
+			radius: 7,
+			width: appearance.width,
+			background: appearance.tone === "primary" ? theme.blue : theme.raised,
+			border: theme.border,
 		},
-		children: [
-			ui.text(label, {
-				size: 12,
-				lineHeight: 24,
-				maxLines: 1,
-				align: "center",
-			}),
-		],
-	};
+		textStyle: { size: 12, weight: 600 },
+	});
 }
-
-/** A compact tower card; screens supply data and the selection action only. */
-export function towerCard(
-	choice: ConstructionView["choices"][number],
-	select: (kind: TowerKind) => void,
-	drag?: ButtonNode["drag"],
+export function card(
+	id: string,
+	title: string,
+	description: string,
+	art: UiNode,
+	onPress: () => void,
+	disabled = false,
 ): UiNode {
-	return {
-		kind: "button",
-		id: `build-${choice.kind}`,
-		label: choice.label,
-		description: choice.detail,
-		disabled: choice.disabled,
-		pressed: choice.selected,
-		onPress: () => select(choice.kind),
-		drag,
+	return ui.button({
+		id,
+		label: title,
+		description,
+		onPress,
+		disabled,
 		style: {
-			width: 60,
-			padding: 4,
-			gap: 2,
-			minHeight: 64,
-			radius: 3,
-			border: choice.selected
-				? defenseTheme.towers[choice.kind]
-				: defenseTheme.towerCards[choice.kind],
-			background: defenseTheme.towerCards[choice.kind],
+			padding: 6,
+			gap: 4,
+			minHeight: 174,
+			justify: "start",
+			background: theme.card,
+			border: theme.border,
+			insetBorder: theme.cardEdge,
+			radius: 8,
 		},
 		children: [
-			ui.text(choice.title, {
-				size: 9,
-				lineHeight: 10,
-				weight: 700,
-				align: "center",
-				color: defenseTheme.towers[choice.kind],
-			}),
-			towerPortrait(choice.kind),
-			ui.text(choice.detail.split(" · ")[0], {
-				size: 11,
-				lineHeight: 12,
-				weight: 700,
-				align: "center",
-			}),
-		],
-	};
-}
-export function actionButton(
-	item: ActionView,
-	act: (id: ConstructionAction) => void,
-): UiNode {
-	const node = compactButton(
-		item.id,
-		item.label,
-		() => act(item.id),
-		item.disabled,
-	);
-	node.style = {
-		...node.style,
-		background:
-			item.tone === "primary"
-				? theme.ui.action
-				: item.tone === "danger"
-					? theme.ui.dangerSurface
-					: theme.ui.surface,
-	};
-	return node;
-}
-
-export function rewardCard(
-	options: Parameters<typeof ui.card>[0] & {
-		artwork?: UiNode;
-		badge?: string;
-		accent?: string;
-	},
-): UiNode {
-	const node = ui.card(options);
-	if (node.kind === "button") {
-		node.style = {
-			...node.style,
-			padding: 10,
-			gap: 8,
-			minHeight: 76,
-			radius: 8,
-			border: options.accent ?? theme.ui.border,
-		};
-		node.children = [
-			...(options.artwork ? [ui.column([options.artwork], { width: 40 })] : []),
+			art,
 			ui.column(
 				[
-					ui.text(options.label, {
-						size: 14,
+					ui.text(title, {
+						size: 11,
+						lineHeight: 14,
 						weight: 700,
+						align: "center",
 					}),
-					ui.text(options.description ?? "", { size: 11, muted: true }),
-					...(options.badge
-						? [
-								ui.text(options.badge, {
-									size: 9,
-									weight: 700,
-									color: options.accent,
-								}),
-							]
-						: []),
 				],
-				{ gap: 4 },
+				{ minHeight: 28, justify: "center" },
 			),
-		];
-	}
-	return node;
+			ui.text(description, {
+				size: 10,
+				lineHeight: 13,
+				align: "center",
+				color: theme.muted,
+			}),
+		],
+	});
 }
-export function bonusChip(
-	id: string,
-	label: string,
-	icon: string,
-	onPress: () => void,
-): ButtonNode {
-	return {
-		kind: "button",
-		id,
-		label,
-		onPress,
-		style: {
-			width: 44,
-			minHeight: 36,
-			padding: 8,
-			radius: 6,
-			background: theme.ui.surface,
+export function placeholders(count: number): UiNode[] {
+	return Array.from({ length: count }, (_, i) =>
+		card(
+			`placeholder-${i}`,
+			"Скоро",
+			"",
+			ui.column(
+				[ui.text("◇", { size: 32, align: "center", color: theme.muted })],
+				{ height: 58, justify: "center" },
+			),
+			() => {},
+			true,
+		),
+	);
+}
+export function panel(
+	title: string,
+	children: UiNode[],
+	celebration = false,
+): UiNode {
+	return ui.column(
+		[
+			celebration
+				? ribbon(title, {
+						face: theme.blue,
+						fold: theme.blueEdge,
+						edge: theme.blueHighlight,
+						text: theme.text,
+					})
+				: ui.text(title, { size: 18, weight: 800, align: "center" }),
+			...children,
+		],
+		{
+			background: theme.panel,
+			border: theme.border,
+			radius: 16,
+			padding: 10,
+			gap: 8,
 		},
-		children: [ui.text(icon, { size: 16, align: "center" })],
+	);
+}
+export function relicArt(
+	assets: DefenseAssets,
+	sprite: SpriteId,
+	rarity: RelicRarity,
+	height = 58,
+): UiNode {
+	const look = rarityLooks[rarity];
+	const base = portrait(assets, sprite, height);
+	return {
+		kind: "drawing",
+		height,
+		draw(ctx, rect) {
+			const cx = rect.x + rect.width / 2,
+				cy = rect.y + rect.height / 2,
+				radius = rect.height * 0.55;
+			const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, radius);
+			glow.addColorStop(0, `${look.frame}aa`);
+			glow.addColorStop(1, `${look.frame}00`);
+			ctx.fillStyle = glow;
+			ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+			if (base.kind === "drawing") base.draw(ctx, rect);
+			if (!look.shine) return;
+			const phase = (performance.now() / 2000) % 1;
+			const x = rect.x - rect.width + phase * rect.width * 3;
+			ctx.save();
+			ctx.beginPath();
+			ctx.rect(rect.x, rect.y, rect.width, rect.height);
+			ctx.clip();
+			const glint = ctx.createLinearGradient(x, rect.y, x + 24, rect.y + 24);
+			glint.addColorStop(0, "#fff0");
+			glint.addColorStop(0.5, "#fff8");
+			glint.addColorStop(1, "#fff0");
+			ctx.globalCompositeOperation = "lighter";
+			ctx.fillStyle = glint;
+			ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+			ctx.restore();
+		},
 	};
 }
-
-/** A permanent tray slot: starting a wave never changes the board's layout. */
-export function waveButton(
-	launch: ActionView | null,
-	battle: boolean,
-	act: (id: ConstructionAction) => void,
-): ButtonNode {
-	return {
-		kind: "button",
-		id: "startWave",
-		label: launch?.label ?? "Волна идёт",
-		disabled: !launch || launch.disabled,
-		onPress: () => act("startWave"),
+export function relicCard(
+	assets: DefenseAssets,
+	relic: RelicDefinition,
+	onPress: () => void,
+	pressed = false,
+): UiNode {
+	const look = rarityLooks[relic.rarity];
+	return ui.button({
+		id: relic.id,
+		label: relic.title,
+		description: `${look.label} · ${relic.description}`,
+		onPress,
+		pressed,
 		style: {
-			width: 64,
-			height: 64,
-			padding: 4,
-			gap: 2,
-			radius: 12,
-			background: theme.ui.coldSurface,
+			padding: 6,
+			gap: 3,
+			minHeight: 188,
+			justify: "start",
+			background: pressed ? theme.raised : theme.card,
+			border: look.frame,
+			insetBorder: look.ribbon,
+			radius: 8,
 		},
 		children: [
-			ui.text(battle ? "···" : "▶", {
-				size: 24,
-				lineHeight: 30,
+			ui.text(look.label.toUpperCase(), {
+				size: 9,
+				weight: 800,
 				align: "center",
-				color: theme.ui.focus,
+				color: look.frame,
 			}),
-			ui.text(
-				battle
-					? "В бою"
-					: launch?.disabled
-						? "Размести"
-						: `Волна ${launch?.label.match(/\d+$/)?.[0] ?? ""}`,
-				{ size: 10, lineHeight: 18, align: "center" },
+			relicArt(assets, relic.sprite, relic.rarity),
+			ui.column(
+				[
+					ui.text(relic.title, {
+						size: 11,
+						lineHeight: 14,
+						weight: 700,
+						align: "center",
+					}),
+				],
+				{ minHeight: 28, justify: "center" },
 			),
+			ui.text(relic.description, {
+				size: 10,
+				lineHeight: 13,
+				align: "center",
+				color: theme.muted,
+			}),
 		],
-	};
+	});
 }

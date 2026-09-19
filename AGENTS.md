@@ -11,7 +11,7 @@ This repository contains independent browser games on a shared TypeScript Canvas
 - `src/launcher/`, `src/main.ts`, `src/export/`: application composition and public entry points.
 - `src/testkit/`: shared engine/render mocks and architecture checks. Game-specific test helpers stay with the game.
 
-Oxlint enforces dependency ownership, including relative and dynamic imports: shared modules cannot import games or application entry points; games cannot import one another or application entry points. Palette assignments belong in shared or game `theme.ts` files. When changing module ownership, read `docs/ARCHITECTURE.md`.
+Oxlint enforces dependency ownership, including relative and dynamic imports: shared modules cannot import games or application entry points; games cannot import one another or application entry points. Palette assignments belong in shared or game `theme.ts` files. When changing module ownership, consult the architecture summary in `old.md` and verify it against the code.
 
 ## Build, Test, and Development Commands
 
@@ -42,7 +42,7 @@ History uses short, informal subjects, including `moving platforms` and `better 
 
 ### Issue tracker
 
-Issues and specs live in GitHub Issues. Before tracker operations,
+Implementation issues and specs live in GitHub Issues; new game-design decisions live in GDD.md. Before tracker operations,
 read docs/agents/issue-tracker.md.
 
 ### Triage labels

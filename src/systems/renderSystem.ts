@@ -1,3 +1,4 @@
+import { worldPoint, screenPoint } from "@/render/projection";
 import {
 	AnimationState,
 	AnimationTable,
@@ -10,52 +11,37 @@ import { TransformComponent } from "@/components/transformComponent";
 import { PrimitiveRenderComponent } from "@/components/renderableComponent";
 import { SpriteRenderComponent } from "@/components/spriteRenderComponent";
 import { TextRenderComponent } from "@/components/textRenderComponent";
-import { Screen } from "@/core/screen";
 import type { World } from "@/core/world";
 import type { Entity } from "@/entities/entity";
 import { AABB } from "@/primitives/aabb";
 import { ORDERED_LAYERS } from "@/render/layers";
-import type { IRenderer } from "@/render/renderer";
+import type { IRenderer, FrameRenderer } from "@/render/renderer";
 import type { ISystem } from "@/systems/system";
 import { Vec2 } from "@/primitives/vec2-gl";
 
 export class RenderSystem implements ISystem {
 	#renderer: IRenderer;
-	#screen: Screen;
-	#tempVisibleWorldSize = Vec2.create();
 	#tempPosWithOffset = Vec2.create();
 
-	constructor(renderer: IRenderer, screen: Screen) {
+	constructor(renderer: IRenderer) {
 		this.#renderer = renderer;
-		this.#screen = screen;
 	}
 
 	update(world: World): void {
 		const { camera, transform: cameraTransform } = this.getCamera(world);
 
-		this.#renderer.clear();
-
-		this.#renderer.setCamera({
-			position: cameraTransform.position,
-			zoom: camera.zoom,
-		});
-
-		const visibleWorldSize = this.#screen.getCameraWorldSize(camera.zoom);
-
-		Vec2.copy(this.#tempVisibleWorldSize, visibleWorldSize);
-
-		const cameraAABB = AABB.fromCenter(
-			cameraTransform.position,
-			this.#tempVisibleWorldSize,
+		this.#renderer.frame(
+			{ position: cameraTransform.position, zoom: camera.zoom },
+			(frame) => {
+				for (const layer of ORDERED_LAYERS) {
+					for (const entity of world.queryByLayer(layer, (entity) =>
+						this.isEntityVisible(world, entity, frame.bounds),
+					)) {
+						this.renderEntity(world, entity, frame);
+					}
+				}
+			},
 		);
-
-		for (const layer of ORDERED_LAYERS) {
-			for (const entity of world.queryByLayer(layer, (entity) =>
-				this.isEntityVisible(world, entity, cameraAABB),
-			)) {
-				this.renderEntity(world, entity);
-			}
-		}
 	}
 
 	private isEntityVisible(
@@ -66,6 +52,12 @@ export class RenderSystem implements ISystem {
 		const transform = world.getComponent(entity, TransformComponent);
 		if (!transform) return true;
 
+		if (
+			world.getComponent(entity, SpriteRenderComponent)?.static ||
+			world.getComponent(entity, TextRenderComponent) ||
+			world.getComponent(entity, DebugRenderComponent)
+		)
+			return true;
 		let combined: AABB | undefined;
 
 		for (const bounds of this.renderBounds(world, entity, transform)) {
@@ -114,7 +106,7 @@ export class RenderSystem implements ISystem {
 		}
 	}
 
-	private renderEntity(world: World, entity: Entity) {
+	private renderEntity(world: World, entity: Entity, frame: FrameRenderer) {
 		const transform = world.getComponent(entity, TransformComponent);
 
 		if (!transform) return;
@@ -122,16 +114,16 @@ export class RenderSystem implements ISystem {
 		const sprite = world.getComponent(entity, SpriteRenderComponent);
 
 		if (sprite && sprite.enabled) {
-			this.#renderer.renderSprite({
+			frame.renderSprite({
 				imageName: sprite.name,
-				offset: sprite.offset,
-				position: transform.position,
+				position: (sprite.static ? screenPoint : worldPoint)(
+					transform.position[0] + sprite.offset[0],
+					transform.position[1] + sprite.offset[1],
+				),
 				size: sprite.size,
 				spriteOffset: sprite.spriteOffset,
 				spriteSize: sprite.spriteSize,
-				static: sprite.static,
-				fitToSize: sprite.fitToSize,
-				tileX: sprite.tileX,
+				sizing: sprite.sizing,
 				alpha: sprite.alpha,
 			});
 		}
@@ -152,12 +144,14 @@ export class RenderSystem implements ISystem {
 				const facing = world.getComponent(entity, FacingComponent);
 				const direction = facing?.direction ?? "right";
 
-				this.#renderer.renderAnimated({
+				frame.renderAnimated({
 					name: clip.sheet,
 					frame: animationTimer.frame,
 					direction,
-					position: transform.position,
-					offset: clip.offset,
+					position: worldPoint(
+						transform.position[0] + clip.offset[0],
+						transform.position[1] + clip.offset[1],
+					),
 					size: clip.size,
 					spriteSize: clip.spriteSize ?? clip.size,
 					cols: clip.cols,
@@ -168,12 +162,14 @@ export class RenderSystem implements ISystem {
 		const primitive = world.getComponent(entity, PrimitiveRenderComponent);
 
 		if (primitive) {
-			this.#renderer.renderPrimitive({
+			frame.renderPrimitive({
 				color: primitive.color,
 				filled: primitive.filled,
 				form: primitive.form,
-				offset: primitive.offset,
-				position: transform.position,
+				position: worldPoint(
+					transform.position[0] + primitive.offset[0],
+					transform.position[1] + primitive.offset[1],
+				),
 				size: primitive.size,
 			});
 		}
@@ -181,10 +177,11 @@ export class RenderSystem implements ISystem {
 		const text = world.getComponent(entity, TextRenderComponent);
 
 		if (text) {
-			this.#renderer.renderText({
-				position: transform.position,
-				offset: text.offset,
-				static: text.static,
+			frame.renderText({
+				position: (text.static ? screenPoint : worldPoint)(
+					transform.position[0] + text.offset[0],
+					transform.position[1] + text.offset[1],
+				),
 				text: text.text,
 				color: text.color,
 				fontSize: text.fontSize,
@@ -197,7 +194,7 @@ export class RenderSystem implements ISystem {
 			for (const render of debug.flush()) {
 				switch (render.type) {
 					case "aabb":
-						this.#renderer.debugAABB(render.aabb, render.color, undefined);
+						frame.debugAABB(render.aabb, render.color, undefined);
 						break;
 				}
 			}
@@ -205,7 +202,7 @@ export class RenderSystem implements ISystem {
 			for (const render of debug.persistent()) {
 				switch (render.type) {
 					case "aabb":
-						this.#renderer.debugAABB(render.aabb, render.color, render.name);
+						frame.debugAABB(render.aabb, render.color, render.name);
 						break;
 				}
 			}

@@ -1,3 +1,4 @@
+import type { PaintContext } from "@/render/surface";
 import {
 	contains,
 	type ButtonNode,
@@ -21,17 +22,11 @@ export class CanvasUi {
 	#fade: Tween;
 	#enabled = true;
 	constructor(
-		private readonly ctx: CanvasRenderingContext2D,
+		measure: (text: string, font: string) => number,
 		private readonly appearance: UiAppearance,
 		private readonly reducedMotion = false,
 	) {
-		this.#text = new TextLayout((text, font) => {
-			ctx.save();
-			ctx.font = font;
-			const width = ctx.measureText(text).width;
-			ctx.restore();
-			return width;
-		});
+		this.#text = new TextLayout(measure);
 		this.#fade = new Tween(1, 1, 0);
 	}
 	show(node: UiNode, width: number, animate = true): void {
@@ -140,11 +135,11 @@ export class CanvasUi {
 	invalidateText(): void {
 		this.#text.clear();
 	}
-	draw(): void {
+	draw(ctx: PaintContext): void {
 		if (!this.#tree) return;
-		this.ctx.save();
-		this.ctx.globalAlpha *= this.#fade.value * (this.#enabled ? 1 : 0.42);
-		paint(this.ctx, this.#tree, this.appearance, this.#focus, this.#pressed);
+		ctx.save();
+		ctx.globalAlpha *= this.#fade.value * (this.#enabled ? 1 : 0.42);
+		paint(ctx, this.#tree, this.appearance, this.#focus, this.#pressed);
 		const target = this.buttons.find((item) => item.node.id === this.#tooltip);
 		if (target?.node.tooltip) {
 			const width = Math.min(280, this.#tree.rect.width - 16);
@@ -180,9 +175,9 @@ export class CanvasUi {
 					this.height - tip.rect.height,
 				),
 			);
-			this.ctx.translate(x, y);
-			paint(this.ctx, tip, this.appearance, null, null);
+			ctx.translate(x, y);
+			paint(ctx, tip, this.appearance, null, null);
 		}
-		this.ctx.restore();
+		ctx.restore();
 	}
 }

@@ -1,52 +1,54 @@
-import type { DefenseEventOptions } from "@/games/defense/events";
-import type { DefenseSession } from "@/games/defense/session";
-export type {
-	DefenseProgress,
-	DefenseEvent,
-	DefenseEventOptions,
-} from "@/games/defense/events";
 import { Engine } from "@/core/engine";
-import { mountBrowserGame } from "@/core/browserGame";
 import { Screen } from "@/core/screen";
 import { Vec2 } from "@/primitives/vec2-gl";
-import { createDefenseSession } from "@/games/defense/session";
-import { RunScreen } from "@/games/defense/runScreen";
-import { grid } from "@/games/defense/board";
-import { element } from "@/games/defense/dom";
-
+import { mountBrowserGame } from "@/core/browserGame";
+import { createDefenseSession } from "./session";
+import type { DefenseEventOptions } from "./events";
+import { RunScreen, type Persistence } from "./runScreen";
+import { loadAssets } from "./assets";
+export type {
+	DefenseEventOptions,
+	DefenseEvent,
+	DefenseProgress,
+} from "./events";
 export async function mountDefense(
 	node: HTMLElement,
-	options: {
-		seed?: string;
-		saved?: string;
-		onSave?: (saved: string) => void;
-		onSaveError?: (error: unknown) => void;
-	} & DefenseEventOptions = {},
+	options: { seed?: string; saved?: string } & DefenseEventOptions &
+		Persistence = {},
 ) {
-	const root = element("section", "defense");
-	let session: DefenseSession;
+	const root = document.createElement("section");
+	root.className = "defense";
+	const session = await createDefenseSession(options);
+	let manuallyPaused = false;
+	let controls: { pause(): void; resume(): void } | undefined;
 	const lifecycle = await mountBrowserGame(root, async (defer) => {
-		session = await createDefenseSession(options);
+		defer(() => session.destroy());
+		const assets = await loadAssets();
+		const screen = new RunScreen(root, session, assets, options, () => {
+			manuallyPaused = !manuallyPaused;
+			if (manuallyPaused) controls?.pause();
+			else controls?.resume();
+		});
+		defer(() => screen.destroy());
 		const engine = new Engine(
 			{
 				initialize: async () => {},
-				fixedUpdate: () => session.step(),
+				fixedUpdate: () => session.step(screen.speed),
 				update: (dt) => screen.advance(dt),
 				destroy: () => session.destroy(),
 			},
 			{ initialize: async () => {} },
-			new Screen(Vec2.fromValues(grid.width, grid.height), 1, grid.height / 2),
+			new Screen(Vec2.fromValues(390, 580), 1, 290),
 			60,
 		);
 		defer(() => engine.destroy());
-		const screen = new RunScreen(root, session, options);
-		defer(() => screen.destroy());
 		node.append(root);
 		return {
 			engine,
+			sync: (paused: boolean) => screen.sync(paused),
 			pagehide: () => screen.persist(),
-			sync: (paused) => screen.sync(paused),
 		};
 	});
+	controls = lifecycle;
 	return { ...lifecycle, getProgress: () => session.getProgress() };
 }

@@ -1,3 +1,4 @@
+import { createCanvas, type CanvasElement } from "@/render/canvas";
 import { applyTheme } from "@/ui/theme";
 import {
 	audio,
@@ -56,8 +57,8 @@ type Result = {
 export function createGameWithTouchHints(
 	root: HTMLElement,
 	inputMode: GameOptions["inputMode"],
-): HTMLCanvasElement {
-	const canvas = document.createElement("canvas");
+): CanvasElement {
+	const canvas = createCanvas();
 	canvas.id = "game";
 	root.appendChild(canvas);
 
@@ -106,11 +107,6 @@ export async function createGame(options: GameOptions): Promise<Result> {
 
 		const pixelRatio = options.pixelRatio ?? 1;
 		const screen = new Screen(screenSize, pixelRatio, options.orthographicSize);
-
-		canvas.width = screen.bufferSize[0];
-		canvas.height = screen.bufferSize[1];
-		canvas.style.width = `${screen.size[0]}px`;
-		canvas.style.height = `${screen.size[1]}px`;
 
 		const world = new JumperWorld({ debug: options.debug });
 		const assetsManager = new AssetsManager<SpriteName, AudioName>();

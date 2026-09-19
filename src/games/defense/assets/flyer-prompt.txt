@@ -1,0 +1,14 @@
+Generated with the built-in image_gen tool using medieval-atlas.png as a style reference.
+
+Use case: stylized-concept
+Asset type: production 2D flying-enemy sprite atlas for a cozy medieval mobile tower defense
+Input images: medieval-atlas.png is a style, palette, outline, shading, scale, and camera reference only
+Primary request: exactly two matching views of one original airborne cavalry enemy: a stocky green orc rider mounted on a compact ochre-brown winged reptilian beast. Bold, colorful, chunky heroic-fantasy energy without copying any existing franchise character, mount, armor, or insignia.
+Scene/backdrop: genuinely transparent alpha, no ground or scene
+Subject: muscular green orc with two small lower tusks, brown leather harness and dark iron shoulder guard, gripping reins; compact horned wyvern with broad leathery wings, hind legs, and short tail; no weapon
+Style/medium: polished hand-painted cartoon mobile game sprite, bold clean dark outlines, soft warm shading, chunky readable shapes matching the supplied medieval defense atlas
+Composition/framing: horizontal two-view atlas; left half shows the mounted unit flying downward in a symmetrical three-quarter frontal view with wings spread; right half shows the same unit flying right in side profile with wings raised; one isolated centered full-body unit in each half; consistent scale; generous transparent separation; nothing clipped
+Camera: elevated top-down slightly front-facing view matching the reference atlas
+Lighting/mood: warm soft light from upper left, playful hostile fantasy
+Color palette: green orc skin, ochre-brown hide, dark brown wing membranes and leather, charcoal iron, muted red cloth accent
+Constraints: actual transparent background; exactly two mounted units; rider clearly seated in both views; readable at 48-64 pixels; no text, labels, gridlines, ground shadow, scenery, flames, oil, shield, logos, faction emblem, recognizable franchise armor, extra heads, extra wings, extra legs, clipped wing tips, watermark, or border

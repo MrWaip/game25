@@ -1,0 +1,7 @@
+Edited with the built-in image_gen tool in precise-object-edit mode. The original PNG was the edit target in each request; dimensions, framing, style, geometry, and transparent alpha were preserved.
+
+ozon-bank-castle.png
+Reduce the amount and visual dominance of branding on the exact castle. Remove white text from both roof flags and both hanging tower banners, leaving plain royal-blue fabric with gold trim. Remove the slogan from the curved stone ribbon, leaving clean carved stone. Shrink the central blue "ozon банк" sign to about one third of its old area, retaining that text once and only once. Keep the exact silhouette, towers, roofs, doorway, plants, perspective, materials, lighting, painterly cartoon style, framing, and transparent outside area unchanged. Add no new branding, signs, objects, buildings, or characters.
+
+ozon-wall.png
+Make the identity much smaller and subtler on the exact wall module. Replace the large central billboard with matching light-gray masonry. Add one small royal-blue medieval shield plaque at the center, no larger than one sixth of the old billboard area, carrying only a tiny white circular gem-like mark and no readable text. Keep the exact silhouette, three crenellations, blue cap stones, surrounding block layout, ivy, perspective, proportions, materials, lighting, painterly cartoon style, framing, soft shadow, and transparent outside area unchanged. Add no text, towers, flags, objects, or characters.

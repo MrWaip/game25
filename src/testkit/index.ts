@@ -7,6 +7,7 @@ export {
 export {
 	createTestRenderer,
 	createMockImageBitmap,
-	createMockCanvas,
 	createMockAssetsManager,
 } from "@/testkit/renderer";
+
+export { createMockCanvas } from "@/testkit/canvas";
